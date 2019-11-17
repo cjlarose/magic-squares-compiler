@@ -6,8 +6,8 @@ module Lib
 
 import Data.Char (ord)
 
-import LLVM.AST
 import qualified LLVM.AST as AST
+import LLVM.AST (Name(Name), Named((:=)))
 import LLVM.AST.Type (i8, i32, ptr)
 import qualified LLVM.AST.Linkage as Linkage
 import qualified LLVM.AST.Constant as Constant
@@ -18,24 +18,18 @@ import LLVM.AST.ParameterAttribute (ParameterAttribute(NoCapture, ReadOnly))
 
 import Control.Monad.Except
 
-matrixType :: Int -> Type
-matrixType n = AST.ArrayType
-  { nArrayElements = fromIntegral n
-  , elementType = AST.ArrayType
-    { nArrayElements = fromIntegral n
-    , elementType = i32
-    }
-  }
+matrixType :: Int -> AST.Type
+matrixType n = AST.ArrayType (fromIntegral n) (AST.ArrayType (fromIntegral n) i32)
 
-defExternalPrintf :: Definition
-defExternalPrintf = GlobalDefinition functionDefaults
+defExternalPrintf :: AST.Definition
+defExternalPrintf = AST.GlobalDefinition functionDefaults
   { name = Name "printf"
   , returnType = i32
   , parameters = ([Parameter (ptr i8) (Name "str") [NoCapture, ReadOnly]], True) -- TODO i8
   }
 
-defGlobalSquare :: Int -> Definition
-defGlobalSquare n = GlobalDefinition globalVariableDefaults
+defGlobalSquare :: Int -> AST.Definition
+defGlobalSquare n = AST.GlobalDefinition globalVariableDefaults
   { name = Name "square"
   , linkage = Linkage.Private
   , LLVM.AST.Global.type' = matrixType n
@@ -45,7 +39,7 @@ defGlobalSquare n = GlobalDefinition globalVariableDefaults
 formatString :: Int -> String
 formatString _ = "%d\n"
 
-formatStringType :: Int -> Type
+formatStringType :: Int -> AST.Type
 formatStringType n = AST.ArrayType (fromIntegral . length . formatString $ n) i8
 
 formatStringAddress :: Int -> Constant.Constant
@@ -55,8 +49,8 @@ formatStringAddress n =
     (Constant.GlobalReference (ptr . formatStringType $ n) (Name "format_str"))
     [ Constant.Int 64 0, Constant.Int 64 0 ]
 
-defGlobalFormatStr :: Int -> Definition
-defGlobalFormatStr n = GlobalDefinition globalVariableDefaults
+defGlobalFormatStr :: Int -> AST.Definition
+defGlobalFormatStr n = AST.GlobalDefinition globalVariableDefaults
   { name = Name "format_str"
   , linkage = Linkage.Private
   , isConstant = True
@@ -81,8 +75,8 @@ matrixElementAddress n i j =
     , Constant.Int 64 . fromIntegral $ j
     ]
 
-defPrintSquare :: Int -> Definition
-defPrintSquare n = GlobalDefinition functionDefaults
+defPrintSquare :: Int -> AST.Definition
+defPrintSquare n = AST.GlobalDefinition functionDefaults
   { name = Name "print_square"
   , returnType = AST.VoidType
   , basicBlocks = [body]
@@ -93,7 +87,7 @@ defPrintSquare n = GlobalDefinition functionDefaults
         [ Name "a00" :=
             Instruction.Load
               False -- volatile
-              (ConstantOperand $ matrixElementAddress n 0 0)
+              (AST.ConstantOperand $ matrixElementAddress n 0 0)
               Nothing -- atomicity
               4 -- alignment
             []
@@ -102,22 +96,22 @@ defPrintSquare n = GlobalDefinition functionDefaults
               (Just Instruction.Tail)
               CallingConvention.C -- calling convention
               [] -- return attributes
-              (Right . ConstantOperand $
+              (Right . AST.ConstantOperand $
                 Constant.GlobalReference
-                  (ptr (FunctionType i32 [ptr i8] True))
+                  (ptr (AST.FunctionType i32 [ptr i8] True))
                   (Name "printf"))
-              [ (ConstantOperand (formatStringAddress n), [])
-              , (LocalReference i32 (Name "a00"), [])
+              [ (AST.ConstantOperand (formatStringAddress n), [])
+              , (AST.LocalReference i32 (Name "a00"), [])
               ]
               [] -- function attributes
               [] -- instruction metadata
         ]
-        (Do $ Ret Nothing [])
+        (Instruction.Do $ Instruction.Ret Nothing [])
 
 enumerationModule :: Int -> AST.Module
-enumerationModule n = defaultModule
-  { moduleName = "enumerate"
-  , moduleDefinitions =
+enumerationModule n = AST.defaultModule
+  { AST.moduleName = "enumerate"
+  , AST.moduleDefinitions =
     [ defExternalPrintf
     , defGlobalSquare n
     , defGlobalFormatStr n
