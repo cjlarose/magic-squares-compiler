@@ -5,6 +5,7 @@ module Lib
     ) where
 
 import Data.Char (ord)
+import qualified Data.ByteString.Short
 
 import qualified LLVM.AST as AST
 import LLVM.AST (Name(Name), Named((:=)))
@@ -94,9 +95,13 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
   , basicBlocks = [body]
   }
   where
+    matrixValueLocalName :: (Int, Int) -> Name
+    matrixValueLocalName (i, j) = Name . Data.ByteString.Short.pack . map (fromIntegral . fromEnum) $ name
+      where name = "a" ++ show i ++ "_" ++ show j
+
     body = BasicBlock
         (Name "entry")
-        [ Name "a00" :=
+        [ matrixValueLocalName (0, 0) :=
             Instruction.Load
               False -- volatile
               (AST.ConstantOperand $ matrixElementAddress n 0 0)
@@ -113,7 +118,7 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
                   (ptr (AST.FunctionType i32 [ptr i8] True))
                   (Name "printf"))
               [ (AST.ConstantOperand (formatStringAddress n), [])
-              , (AST.LocalReference i32 (Name "a00"), [])
+              , (AST.LocalReference i32 (matrixValueLocalName (0, 0)), [])
               ]
               [] -- function attributes
               [] -- instruction metadata
