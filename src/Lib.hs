@@ -6,6 +6,7 @@ module Lib
 
 import LLVM.AST
 import qualified LLVM.AST as AST
+import qualified LLVM.AST.Linkage as Linkage
 import LLVM.AST.Global
 import LLVM.Context
 import LLVM.Module
@@ -16,6 +17,7 @@ import qualified Data.ByteString.Char8 as BS
 defGlobalSquare :: Int -> Definition
 defGlobalSquare n = GlobalDefinition globalVariableDefaults
   { name = Name "square"
+  , linkage = Linkage.Private
   , LLVM.AST.Global.type' = AST.ArrayType
     { nArrayElements = fromIntegral n
     , elementType = AST.ArrayType
