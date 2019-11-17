@@ -30,8 +30,6 @@ import LLVM.AST.Global
   )
 import LLVM.AST.ParameterAttribute (ParameterAttribute(NoCapture, ReadOnly))
 
-import Control.Monad.Except
-
 matrixType :: Int -> AST.Type
 matrixType n = AST.ArrayType (fromIntegral n) (AST.ArrayType (fromIntegral n) i32)
 
