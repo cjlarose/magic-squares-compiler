@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Lib
-    ( printModule
+    ( enumerationModule
     ) where
 
 import Data.Char (ord)
@@ -14,12 +14,9 @@ import qualified LLVM.AST.Constant as Constant
 import qualified LLVM.AST.Instruction as Instruction
 import qualified LLVM.AST.CallingConvention as CallingConvention
 import LLVM.AST.Global
-import LLVM.Context
-import LLVM.Module
 import LLVM.AST.ParameterAttribute (ParameterAttribute(NoCapture, ReadOnly))
 
 import Control.Monad.Except
-import qualified Data.ByteString.Char8 as BS
 
 matrixType :: Int -> Type
 matrixType n = AST.ArrayType
@@ -127,11 +124,3 @@ enumerationModule n = defaultModule
     , defPrintSquare n
     ]
   }
-
-toLLVM :: AST.Module -> IO ()
-toLLVM mod = withContext $ \ctx -> do
-  llvm <- withModuleFromAST ctx mod moduleLLVMAssembly
-  BS.putStrLn llvm
-
-printModule :: Int -> IO ()
-printModule n = toLLVM $ enumerationModule n
