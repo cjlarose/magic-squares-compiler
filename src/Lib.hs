@@ -22,7 +22,7 @@ defGlobalSquare n = GlobalDefinition globalVariableDefaults
     { nArrayElements = fromIntegral n
     , elementType = AST.ArrayType
       { nArrayElements = fromIntegral n
-      , elementType = AST.IntegerType 64
+      , elementType = AST.IntegerType 32
       }
     }
   }
