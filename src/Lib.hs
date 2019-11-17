@@ -8,6 +8,7 @@ import LLVM.AST
 import qualified LLVM.AST as AST
 import LLVM.AST.Type (i32)
 import qualified LLVM.AST.Linkage as Linkage
+import qualified LLVM.AST.Constant as Constant
 import LLVM.AST.Global
 import LLVM.Context
 import LLVM.Module
@@ -29,6 +30,7 @@ defGlobalSquare n = GlobalDefinition globalVariableDefaults
   { name = Name "square"
   , linkage = Linkage.Private
   , LLVM.AST.Global.type' = matrixType n
+  , initializer = Just . Constant.AggregateZero . matrixType $ n
   }
 
 enumerationModule :: Int -> AST.Module
