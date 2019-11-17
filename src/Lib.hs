@@ -39,7 +39,7 @@ defExternalPrintf :: AST.Definition
 defExternalPrintf = AST.GlobalDefinition functionDefaults
   { name = Name "printf"
   , returnType = i32
-  , parameters = ([Parameter (ptr i8) (Name "str") [NoCapture, ReadOnly]], True) -- TODO i8
+  , parameters = ([Parameter (ptr i8) (Name "str") [NoCapture, ReadOnly]], True)
   }
 
 defGlobalSquare :: Int -> AST.Definition
