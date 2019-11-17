@@ -137,6 +137,31 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
         )
         (Instruction.Do $ Instruction.Ret Nothing [])
 
+defMain :: AST.Definition
+defMain = AST.GlobalDefinition functionDefaults
+  { name = Name "main"
+  , returnType = i32
+  , basicBlocks = [body]
+  }
+  where
+    body :: BasicBlock
+    body = BasicBlock
+      (Name "entry")
+      [ Instruction.Do $
+          Instruction.Call
+          Nothing
+          CallingConvention.C
+          [] -- return attributes
+          ( Right . AST.ConstantOperand $
+              Constant.GlobalReference
+                (ptr (AST.FunctionType AST.VoidType [] False))
+                (Name "print_square") )
+          [] -- arguments
+          [] -- function attributes
+          [] -- instruction attributes
+      ]
+      (Instruction.Do $ Instruction.Ret (Just (AST.ConstantOperand $ Constant.Int 32 0)) [])
+
 enumerationModule :: Int -> AST.Module
 enumerationModule n = AST.defaultModule
   { AST.moduleName = "enumerate"
@@ -145,5 +170,6 @@ enumerationModule n = AST.defaultModule
     , defGlobalSquare n
     , defGlobalFormatStr n
     , defPrintSquare n
+    , defMain
     ]
   }
