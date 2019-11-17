@@ -14,6 +14,20 @@ import qualified LLVM.AST.Constant as Constant
 import qualified LLVM.AST.Instruction as Instruction
 import qualified LLVM.AST.CallingConvention as CallingConvention
 import LLVM.AST.Global
+  ( name
+  , returnType
+  , parameters
+  , linkage
+  , initializer
+  , isConstant
+  , basicBlocks
+  , type'
+  , alignment
+  , globalVariableDefaults
+  , functionDefaults
+  , BasicBlock(..)
+  , Parameter(..)
+  )
 import LLVM.AST.ParameterAttribute (ParameterAttribute(NoCapture, ReadOnly))
 
 import Control.Monad.Except
@@ -32,7 +46,7 @@ defGlobalSquare :: Int -> AST.Definition
 defGlobalSquare n = AST.GlobalDefinition globalVariableDefaults
   { name = Name "square"
   , linkage = Linkage.Private
-  , LLVM.AST.Global.type' = matrixType n
+  , type' = matrixType n
   , initializer = Just . Constant.AggregateZero . matrixType $ n
   }
 
@@ -54,9 +68,9 @@ defGlobalFormatStr n = AST.GlobalDefinition globalVariableDefaults
   { name = Name "format_str"
   , linkage = Linkage.Private
   , isConstant = True
-  , LLVM.AST.Global.type' = formatStringType n
+  , type' = formatStringType n
   , initializer = Just $ Constant.Array i8 initialValue
-  , LLVM.AST.Global.alignment = 1
+  , alignment = 1
   }
   where
     str :: String
