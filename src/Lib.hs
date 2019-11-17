@@ -166,9 +166,9 @@ enumerationModule :: Int -> AST.Module
 enumerationModule n = AST.defaultModule
   { AST.moduleName = "enumerate"
   , AST.moduleDefinitions =
-    [ defExternalPrintf
-    , defGlobalSquare n
+    [ defGlobalSquare n
     , defGlobalFormatStr n
+    , defExternalPrintf
     , defPrintSquare n
     , defMain
     ]
