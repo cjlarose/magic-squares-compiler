@@ -5,6 +5,7 @@ module Lib
     ) where
 
 import Data.Char (ord)
+import Data.List (intercalate)
 import qualified Data.ByteString.Short
 
 import qualified LLVM.AST as AST
@@ -50,7 +51,7 @@ defGlobalSquare n = AST.GlobalDefinition globalVariableDefaults
   }
 
 formatString :: Int -> String
-formatString _ = "%d\n"
+formatString n = (intercalate " " $ take (n * n) (repeat "%d")) ++ "\n"
 
 formatStringType :: Int -> AST.Type
 formatStringType n = AST.ArrayType (fromIntegral . length . formatString $ n) i8
@@ -95,34 +96,45 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
   , basicBlocks = [body]
   }
   where
+    matrixCoods :: [(Int, Int)]
+    matrixCoods = [(i,j) | i <- [0..n-1], j <- [0..n-1]]
+
     matrixValueLocalName :: (Int, Int) -> Name
     matrixValueLocalName (i, j) = Name . Data.ByteString.Short.pack . map (fromIntegral . fromEnum) $ name
       where name = "a" ++ show i ++ "_" ++ show j
 
+    loadInstruction :: (Int, Int) -> Instruction.Named Instruction.Instruction
+    loadInstruction (i, j) =
+      matrixValueLocalName (i, j) :=
+          Instruction.Load
+            False -- volatile
+            (AST.ConstantOperand $ matrixElementAddress n i j)
+            Nothing -- atomicity
+            4 -- alignment
+            [] -- instruction metadata
+
+    loadInstructions :: [Instruction.Named Instruction.Instruction]
+    loadInstructions = map loadInstruction matrixCoods
+
     body = BasicBlock
         (Name "entry")
-        [ matrixValueLocalName (0, 0) :=
-            Instruction.Load
-              False -- volatile
-              (AST.ConstantOperand $ matrixElementAddress n 0 0)
-              Nothing -- atomicity
-              4 -- alignment
-            []
-        , Name "chars_printed" :=
-            Instruction.Call
-              (Just Instruction.Tail)
-              CallingConvention.C -- calling convention
-              [] -- return attributes
-              (Right . AST.ConstantOperand $
-                Constant.GlobalReference
-                  (ptr (AST.FunctionType i32 [ptr i8] True))
-                  (Name "printf"))
-              [ (AST.ConstantOperand (formatStringAddress n), [])
-              , (AST.LocalReference i32 (matrixValueLocalName (0, 0)), [])
-              ]
-              [] -- function attributes
-              [] -- instruction metadata
-        ]
+        ( loadInstructions ++
+          [ Name "chars_printed" :=
+              Instruction.Call
+                (Just Instruction.Tail)
+                CallingConvention.C -- calling convention
+                [] -- return attributes
+                (Right . AST.ConstantOperand $
+                  Constant.GlobalReference
+                    (ptr (AST.FunctionType i32 [ptr i8] True))
+                    (Name "printf"))
+                ( (AST.ConstantOperand (formatStringAddress n), []) :
+                  (map (\x -> (AST.LocalReference i32 (matrixValueLocalName x), [])) matrixCoods)
+                )
+                [] -- function attributes
+                [] -- instruction metadata
+          ]
+        )
         (Instruction.Do $ Instruction.Ret Nothing [])
 
 enumerationModule :: Int -> AST.Module
