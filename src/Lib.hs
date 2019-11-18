@@ -33,9 +33,23 @@ import LLVM.AST.Global
   , Parameter(..)
   )
 import LLVM.AST.ParameterAttribute (ParameterAttribute(NoCapture, ReadOnly))
-import LLVM.IRBuilder.Monad (block, named, execIRBuilder, emptyIRBuilder, IRBuilder, MonadIRBuilder)
-import LLVM.IRBuilder.Instruction (retVoid, add)
+import LLVM.IRBuilder.Monad
+  ( block
+  , named
+  , freshName
+  , partialBlockInstrs
+  , modifyBlock
+  , emitBlockStart
+  , emitTerm
+  , execIRBuilder
+  , emptyIRBuilder
+  , IRBuilder
+  , MonadIRBuilder
+  )
+import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br)
 import LLVM.IRBuilder.Constant (int32)
+import LLVM.IRBuilder.Internal.SnocList (snoc)
+import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE))
 
 matrixType :: Int -> AST.Type
 matrixType n = AST.ArrayType (fromIntegral n) (AST.ArrayType (fromIntegral n) i32)
@@ -148,30 +162,30 @@ data Polynomial = Polynomial [(Int, ParameterName)]
 toShortByteString :: String -> ShortByteString
 toShortByteString = Data.ByteString.Short.pack . map (fromIntegral . fromEnum)
 
-data IntegerComparisonOp = LT | GT
-data Expression = LocalVariable String
-                | ConstantInteger Int
-                | Add Expression Expression
-                | IntegerComparison Expression IntegerComparisonOp Expression
-data Statement = LocalVariableDeclaration String
-               | ExpressionStatement Expression
-               | ForLoop Statement Expression Statement
+emitNamedInstruction :: MonadIRBuilder m => Name -> AST.Type -> Instruction.Instruction -> m AST.Operand
+emitNamedInstruction name returnType instr = do
+  modifyBlock $ \bb -> bb { partialBlockInstrs = partialBlockInstrs bb `snoc` (name := instr) }
+  pure $ AST.LocalReference returnType name
 
-genExpression :: MonadIRBuilder m => Expression -> m AST.Operand
-genExpression (ConstantInteger x) = do
-  return . int32 . fromIntegral $ x
-genExpression (Add lhs rhs) = do
-  lhsVal <- genExpression lhs
-  rhsVal <- genExpression rhs
-  sum <- add lhsVal rhsVal
-  return sum
-genExpression _ = error "unimplemented"
+genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m Name
+genIterateOverStaticRange minVal maxVal loopBody = do
+  entry <- block `named` "loop_entry"
+  loopStart <- freshName "loop_start"
+  br loopStart
 
-genStatement :: MonadIRBuilder m => Statement -> m ()
-genStatement (ExpressionStatement expr) = do
-  _ <- genExpression expr
-  return ()
-genStatement _ = error "unimplemented"
+  emitBlockStart loopStart
+  nextValName <- freshName "next_val"
+  i <- phi [ (int32 . fromIntegral $ minVal, entry)
+           , (AST.LocalReference i32 nextValName, loopStart) ]
+  loopBody i
+  emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
+
+  res <- icmp SLE i (int32 . fromIntegral $ maxVal)
+  loopEnd <- freshName "loop_end"
+  condBr res loopStart loopEnd
+
+  emitBlockStart loopEnd
+  return entry
 
 defTestParameter ::
   ParameterName
@@ -191,11 +205,9 @@ defTestParameter (ParameterName p) (i,j) computedPositions ifSuccess = mdo
 
     blockBuilder :: IRBuilder ()
     blockBuilder = mdo
-      _entry <- block `named` "entry"
-      let lhs = Add (ConstantInteger 2) (ConstantInteger 1)
-      let rhs = Add (ConstantInteger 10) (ConstantInteger 29)
-      genStatement . ExpressionStatement $ Add lhs rhs
-      retVoid
+      genIterateOverStaticRange 1 16 $ \g -> mdo
+        return ()
+      return ()
 
 defMain :: AST.Definition
 defMain = AST.GlobalDefinition functionDefaults
