@@ -191,7 +191,7 @@ defTestParameter ::
   ParameterName
   -> (Int, Int)
   -> [((Int,Int), Polynomial)]
-  -> IRBuilder a
+  -> (AST.Operand -> IRBuilder a)
   -> AST.Definition
 defTestParameter (ParameterName p) (i,j) computedPositions ifSuccess = mdo
   AST.GlobalDefinition functionDefaults
