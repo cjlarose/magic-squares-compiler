@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo #-}
 
 module Lib
     ( enumerationModule
@@ -7,6 +8,7 @@ module Lib
 import Data.Char (ord)
 import Data.List (intercalate)
 import qualified Data.ByteString.Short
+import Data.ByteString.Short (ShortByteString)
 
 import qualified LLVM.AST as AST
 import LLVM.AST (Name(Name), Named((:=)))
@@ -31,6 +33,9 @@ import LLVM.AST.Global
   , Parameter(..)
   )
 import LLVM.AST.ParameterAttribute (ParameterAttribute(NoCapture, ReadOnly))
+import LLVM.IRBuilder.Monad (block, named, execIRBuilder, emptyIRBuilder, IRBuilder, MonadIRBuilder)
+import LLVM.IRBuilder.Instruction (retVoid, add)
+import LLVM.IRBuilder.Constant (int32)
 
 matrixType :: Int -> AST.Type
 matrixType n = AST.ArrayType (fromIntegral n) (AST.ArrayType (fromIntegral n) i32)
@@ -137,6 +142,61 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
         )
         (Instruction.Do $ Instruction.Ret Nothing [])
 
+data ParameterName = ParameterName Char
+data Polynomial = Polynomial [(Int, ParameterName)]
+
+toShortByteString :: String -> ShortByteString
+toShortByteString = Data.ByteString.Short.pack . map (fromIntegral . fromEnum)
+
+data IntegerComparisonOp = LT | GT
+data Expression = LocalVariable String
+                | ConstantInteger Int
+                | Add Expression Expression
+                | IntegerComparison Expression IntegerComparisonOp Expression
+data Statement = LocalVariableDeclaration String
+               | ExpressionStatement Expression
+               | ForLoop Statement Expression Statement
+
+genExpression :: MonadIRBuilder m => Expression -> m AST.Operand
+genExpression (ConstantInteger x) = do
+  return . int32 . fromIntegral $ x
+genExpression (Add lhs rhs) = do
+  lhsVal <- genExpression lhs
+  rhsVal <- genExpression rhs
+  sum <- add lhsVal rhsVal
+  return sum
+genExpression _ = error "unimplemented"
+
+genStatement :: MonadIRBuilder m => Statement -> m ()
+genStatement (ExpressionStatement expr) = do
+  _ <- genExpression expr
+  return ()
+genStatement _ = error "unimplemented"
+
+defTestParameter ::
+  ParameterName
+  -> (Int, Int)
+  -> [((Int,Int), Polynomial)]
+  -> IRBuilder a
+  -> AST.Definition
+defTestParameter (ParameterName p) (i,j) computedPositions ifSuccess = mdo
+  AST.GlobalDefinition functionDefaults
+    { name = Name . toShortByteString $ "test_" ++ [p]
+    , returnType = AST.VoidType
+    , basicBlocks = blocks
+    }
+  where
+    blocks :: [BasicBlock]
+    blocks = execIRBuilder emptyIRBuilder blockBuilder
+
+    blockBuilder :: IRBuilder ()
+    blockBuilder = mdo
+      _entry <- block `named` "entry"
+      let lhs = Add (ConstantInteger 2) (ConstantInteger 1)
+      let rhs = Add (ConstantInteger 10) (ConstantInteger 29)
+      genStatement . ExpressionStatement $ Add lhs rhs
+      retVoid
+
 defMain :: AST.Definition
 defMain = AST.GlobalDefinition functionDefaults
   { name = Name "main"
@@ -170,6 +230,7 @@ enumerationModule n = AST.defaultModule
     , defGlobalFormatStr n
     , defExternalPrintf
     , defPrintSquare n
+    , defTestParameter (ParameterName 'g') (1, 0) [] undefined
     , defMain
     ]
   }
