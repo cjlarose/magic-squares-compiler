@@ -67,6 +67,7 @@ defGlobalSquare n = AST.GlobalDefinition globalVariableDefaults
   , linkage = Linkage.Private
   , type' = matrixType n
   , initializer = Just . Constant.AggregateZero . matrixType $ n
+  , alignment = 64
   }
 
 formatString :: Int -> String
