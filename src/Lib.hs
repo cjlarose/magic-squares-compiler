@@ -51,8 +51,8 @@ import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
 import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, EQ))
 
-matrixType :: Int -> AST.Type
-matrixType n = AST.ArrayType (fromIntegral n) (AST.ArrayType (fromIntegral n) i32)
+import DefEnumerate (defEnumerate)
+import InstructionUtil (matrixType, matrixElementAddress)
 
 defExternalPrintf :: AST.Definition
 defExternalPrintf = AST.GlobalDefinition functionDefaults
@@ -98,16 +98,6 @@ defGlobalFormatStr n = AST.GlobalDefinition globalVariableDefaults
 
     initialValue :: [Constant.Constant]
     initialValue = map (\x -> Constant.Int 8 . fromIntegral $ ord x) str
-
-matrixElementAddress :: Int -> Int -> Int -> Constant.Constant
-matrixElementAddress n i j =
-  Constant.GetElementPtr
-    True -- inbounds
-    (Constant.GlobalReference (ptr (matrixType n)) (Name "square"))
-    [ Constant.Int 64 0
-    , Constant.Int 64 . fromIntegral $ i
-    , Constant.Int 64 . fromIntegral $ j
-    ]
 
 defPrintSquare :: Int -> AST.Definition
 defPrintSquare n = AST.GlobalDefinition functionDefaults
@@ -159,99 +149,6 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
 
 toShortByteString :: String -> ShortByteString
 toShortByteString = Data.ByteString.Short.pack . map (fromIntegral . fromEnum)
-
-emitNamedInstruction :: MonadIRBuilder m => Name -> AST.Type -> Instruction.Instruction -> m AST.Operand
-emitNamedInstruction name returnType instr = do
-  modifyBlock $ \bb -> bb { partialBlockInstrs = partialBlockInstrs bb `snoc` (name := instr) }
-  pure $ AST.LocalReference returnType name
-
-genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m Name
-genIterateOverStaticRange minVal maxVal loopBody = do
-  entry <- block `named` "loop_entry"
-  loopStart <- freshName "loop_start"
-  loopBodyAfter <- freshName "loop_body_after"
-  br loopStart
-
-  emitBlockStart loopStart
-  nextValName <- freshName "next_val"
-  i <- phi [ (int32 . fromIntegral $ minVal, entry)
-           , (AST.LocalReference i32 nextValName, loopBodyAfter) ]
-  loopBody i
-  br loopBodyAfter
-
-  emitBlockStart loopBodyAfter
-  emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
-  res <- icmp SLE i (int32 . fromIntegral $ maxVal)
-  loopEnd <- freshName "loop_end"
-  condBr res loopStart loopEnd
-
-  emitBlockStart loopEnd
-  return entry
-
-isFree :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
-isFree taken val = do
-  lessOne <- sub val (int32 1)
-  shifted <- shl (int32 1) lessOne
-  val <- LLVM.IRBuilder.Instruction.and taken shifted
-  icmp LLVM.AST.IntegerPredicate.EQ val (int32 0)
-
-setTaken :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
-setTaken taken val = do
-  lessOne <- sub val (int32 1)
-  shifted <- shl (int32 1) lessOne
-  LLVM.IRBuilder.Instruction.or taken shifted
-
-genWhen :: MonadIRBuilder m => AST.Operand -> m a -> m ()
-genWhen val ifSuccess = mdo
-  whenTrueLabel <- freshName "when_true"
-  whenFalseLabel <- freshName "when_false"
-
-  condBr val whenTrueLabel whenFalseLabel
-  emitBlockStart whenTrueLabel
-  ifSuccess
-  emitBlockStart whenFalseLabel
-
-setMatrixValue :: MonadIRBuilder m => Int -> (Int, Int) -> AST.Operand -> m ()
-setMatrixValue n (i, j) val = do
-  let addr = AST.ConstantOperand $ matrixElementAddress n i j
-  store addr 4 val
-
-ifNotYetTaken :: MonadIRBuilder m => Int -> AST.Operand -> AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m ()
-ifNotYetTaken n taken val coord ifSuccess = mdo
-  free <- isFree taken val
-  genWhen free $ mdo
-    newTaken <- setTaken taken val
-    setMatrixValue n coord val
-    ifSuccess newTaken
-
-forEachAvailableValue :: MonadIRBuilder m => Int -> AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m()
-forEachAvailableValue n taken coord ifAvailable = mdo
-  genIterateOverStaticRange 1 (n * n) $ \param -> mdo
-    ifNotYetTaken n taken param coord $ \newTaken -> mdo
-      ifAvailable newTaken
-      return ()
-    return ()
-  return ()
-
-data ComputedResultTerm = ConstantInteger Int | PositionWithCoefficient Int (Int, Int)
-data MatrixPosition = FreePosition (Int, Int)
-                    | InducedPosition (Int, Int) [ComputedResultTerm]
-
-defEnumerate :: Int
-             -> [MatrixPosition]
-             -> AST.Definition
-defEnumerate n [] = mdo
-  AST.GlobalDefinition functionDefaults
-    { name = Name "enumerate"
-    , returnType = AST.VoidType
-    , basicBlocks = blocks
-    }
-  where
-    blocks :: [BasicBlock]
-    blocks = execIRBuilder emptyIRBuilder blockBuilder
-
-    blockBuilder :: IRBuilder ()
-    blockBuilder = forEachAvailableValue n (int32 0) (0, 0) $ \g -> return ()
 
 defMain :: AST.Definition
 defMain = AST.GlobalDefinition functionDefaults
