@@ -157,9 +157,6 @@ defPrintSquare n = AST.GlobalDefinition functionDefaults
         )
         (Instruction.Do $ Instruction.Ret Nothing [])
 
-data ParameterName = ParameterName Char
-data Polynomial = Polynomial [(Int, ParameterName)]
-
 toShortByteString :: String -> ShortByteString
 toShortByteString = Data.ByteString.Short.pack . map (fromIntegral . fromEnum)
 
@@ -236,16 +233,16 @@ forEachAvailableValue n taken coord ifAvailable = mdo
     return ()
   return ()
 
-defTestParameter ::
-  Int
-  -> ParameterName
-  -> (Int, Int)
-  -> [((Int,Int), Polynomial)]
-  -> (AST.Operand -> IRBuilder a)
-  -> AST.Definition
-defTestParameter n (ParameterName p) (i,j) computedPositions ifSuccess = mdo
+data ComputedResultTerm = ConstantInteger Int | PositionWithCoefficient Int (Int, Int)
+data MatrixPosition = FreePosition (Int, Int)
+                    | InducedPosition (Int, Int) [ComputedResultTerm]
+
+defEnumerate :: Int
+             -> [MatrixPosition]
+             -> AST.Definition
+defEnumerate n [] = mdo
   AST.GlobalDefinition functionDefaults
-    { name = Name . toShortByteString $ "test_" ++ [p]
+    { name = Name "enumerate"
     , returnType = AST.VoidType
     , basicBlocks = blocks
     }
@@ -289,7 +286,7 @@ enumerationModule n = AST.defaultModule
     , defGlobalFormatStr n
     , defExternalPrintf
     , defPrintSquare n
-    , defTestParameter n (ParameterName 'g') (1, 0) [] undefined
+    , defEnumerate n []
     , defMain
     ]
   }
