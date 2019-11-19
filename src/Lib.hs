@@ -46,10 +46,10 @@ import LLVM.IRBuilder.Monad
   , IRBuilder
   , MonadIRBuilder
   )
-import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br)
+import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store)
 import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
-import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE))
+import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, EQ))
 
 matrixType :: Int -> AST.Type
 matrixType n = AST.ArrayType (fromIntegral n) (AST.ArrayType (fromIntegral n) i32)
@@ -189,41 +189,58 @@ genIterateOverStaticRange minVal maxVal loopBody = do
   return entry
 
 isFree :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
-isFree = undefined
-
-genWhen :: MonadIRBuilder m => AST.Operand -> m a -> m ()
-genWhen = undefined
+isFree taken val = do
+  lessOne <- sub val (int32 1)
+  shifted <- shl (int32 1) lessOne
+  val <- LLVM.IRBuilder.Instruction.and taken shifted
+  icmp LLVM.AST.IntegerPredicate.EQ val (int32 0)
 
 setTaken :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
-setTaken = undefined
+setTaken taken val = do
+  lessOne <- sub val (int32 1)
+  shifted <- shl (int32 1) lessOne
+  LLVM.IRBuilder.Instruction.or taken shifted
 
-setMatrixValue :: MonadIRBuilder m => (Int, Int) -> AST.Operand -> m ()
-setMatrixValue = undefined
+genWhen :: MonadIRBuilder m => AST.Operand -> m a -> m ()
+genWhen val ifSuccess = mdo
+  whenTrueLabel <- freshName "when_true"
+  whenFalseLabel <- freshName "when_false"
 
-ifNotYetTaken :: MonadIRBuilder m => AST.Operand -> AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m ()
-ifNotYetTaken taken val coord ifSuccess = mdo
+  condBr val whenTrueLabel whenFalseLabel
+  emitBlockStart whenTrueLabel
+  ifSuccess
+  emitBlockStart whenFalseLabel
+
+setMatrixValue :: MonadIRBuilder m => Int -> (Int, Int) -> AST.Operand -> m ()
+setMatrixValue n (i, j) val = do
+  let addr = AST.ConstantOperand $ matrixElementAddress n i j
+  store addr 4 val
+
+ifNotYetTaken :: MonadIRBuilder m => Int -> AST.Operand -> AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m ()
+ifNotYetTaken n taken val coord ifSuccess = mdo
   free <- isFree taken val
-  genWhen taken $ mdo
+  genWhen free $ mdo
     newTaken <- setTaken taken val
-    setMatrixValue coord val
+    setMatrixValue n coord val
     ifSuccess newTaken
 
-forEachAvailableValue :: MonadIRBuilder m => AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m()
-forEachAvailableValue taken coord ifAvailable = mdo
-  genIterateOverStaticRange 1 16 $ \param -> mdo
-    ifNotYetTaken taken param coord $ \newTaken -> mdo
+forEachAvailableValue :: MonadIRBuilder m => Int -> AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m()
+forEachAvailableValue n taken coord ifAvailable = mdo
+  genIterateOverStaticRange 1 (n * n) $ \param -> mdo
+    ifNotYetTaken n taken param coord $ \newTaken -> mdo
       ifAvailable newTaken
       return ()
     return ()
   return ()
 
 defTestParameter ::
-  ParameterName
+  Int
+  -> ParameterName
   -> (Int, Int)
   -> [((Int,Int), Polynomial)]
   -> (AST.Operand -> IRBuilder a)
   -> AST.Definition
-defTestParameter (ParameterName p) (i,j) computedPositions ifSuccess = mdo
+defTestParameter n (ParameterName p) (i,j) computedPositions ifSuccess = mdo
   AST.GlobalDefinition functionDefaults
     { name = Name . toShortByteString $ "test_" ++ [p]
     , returnType = AST.VoidType
@@ -234,10 +251,7 @@ defTestParameter (ParameterName p) (i,j) computedPositions ifSuccess = mdo
     blocks = execIRBuilder emptyIRBuilder blockBuilder
 
     blockBuilder :: IRBuilder ()
-    blockBuilder = mdo
-      genIterateOverStaticRange 1 16 $ \g -> mdo
-        return ()
-      return ()
+    blockBuilder = forEachAvailableValue n (int32 0) (0, 0) $ \g -> return ()
 
 defMain :: AST.Definition
 defMain = AST.GlobalDefinition functionDefaults
@@ -272,7 +286,7 @@ enumerationModule n = AST.defaultModule
     , defGlobalFormatStr n
     , defExternalPrintf
     , defPrintSquare n
-    , defTestParameter (ParameterName 'g') (1, 0) [] undefined
+    , defTestParameter n (ParameterName 'g') (1, 0) [] undefined
     , defMain
     ]
   }
