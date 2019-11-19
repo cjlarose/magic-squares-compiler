@@ -198,9 +198,9 @@ defEnumerate n [] = mdo
         forEachAvailableValue n taken1 (3, 3) $ \taken2 -> do
           forEachAvailableValue n taken2 (0, 3) $ \taken3 -> do
             let calc03 = [ ConstantIntegerTerm 34
-                         , PositionWithCoefficientTerm (-1) (1, 1)
-                         , PositionWithCoefficientTerm (-1) (1, 2)
-                         , PositionWithCoefficientTerm (-1) (1, 0) ]
+                         , PositionWithCoefficientTerm (-1) (0, 0)
+                         , PositionWithCoefficientTerm (-1) (3, 3)
+                         , PositionWithCoefficientTerm (-1) (0, 3) ]
             ifValidComputedPosition n taken3 (InducedPosition (0, 3) calc03) $ \_ -> do
               call printSquare []
               return ()
