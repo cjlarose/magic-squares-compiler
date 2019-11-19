@@ -91,12 +91,16 @@ setTaken taken val = do
 genWhen :: MonadIRBuilder m => AST.Operand -> m a -> m ()
 genWhen val ifSuccess = mdo
   whenTrueLabel <- freshName "when_true"
-  whenFalseLabel <- freshName "when_false"
+  whenEndLabel <- freshName "when_end"
 
-  condBr val whenTrueLabel whenFalseLabel
+  condBr val whenTrueLabel whenEndLabel
+
   emitBlockStart whenTrueLabel
   ifSuccess
-  emitBlockStart whenFalseLabel
+  br whenEndLabel
+
+  emitBlockStart whenEndLabel
+  return ()
 
 setMatrixValue :: MonadIRBuilder m => Int -> (Int, Int) -> AST.Operand -> m ()
 setMatrixValue n (i, j) val = do
