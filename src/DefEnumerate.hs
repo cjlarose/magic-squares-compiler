@@ -52,16 +52,20 @@ import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
 
 import InstructionUtil (matrixElementAddress, emitNamedInstruction)
 
-genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m Name
+genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m ()
 genIterateOverStaticRange minVal maxVal loopBody = do
-  entry <- block `named` "loop_entry"
+  loopEntry <- freshName "loop_entry"
   loopStart <- freshName "loop_start"
   loopBodyAfter <- freshName "loop_body_after"
+
+  br loopEntry
+
+  emitBlockStart loopEntry
   br loopStart
 
   emitBlockStart loopStart
   nextValName <- freshName "next_val"
-  i <- phi [ (int32 . fromIntegral $ minVal, entry)
+  i <- phi [ (int32 . fromIntegral $ minVal, loopEntry)
            , (AST.LocalReference i32 nextValName, loopBodyAfter) ]
   loopBody i
   br loopBodyAfter
@@ -73,7 +77,7 @@ genIterateOverStaticRange minVal maxVal loopBody = do
   condBr res loopStart loopEnd
 
   emitBlockStart loopEnd
-  return entry
+  return ()
 
 isFree :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
 isFree taken val = do
