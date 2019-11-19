@@ -71,8 +71,8 @@ genIterateOverStaticRange minVal maxVal loopBody = do
   br loopBodyAfter
 
   emitBlockStart loopBodyAfter
-  emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
-  res <- icmp SLE i (int32 . fromIntegral $ maxVal)
+  nextVal <- emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
+  res <- icmp SLE nextVal (int32 . fromIntegral $ maxVal)
   loopEnd <- freshName "loop_end"
   condBr res loopStart loopEnd
 
