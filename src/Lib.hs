@@ -172,15 +172,18 @@ genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m
 genIterateOverStaticRange minVal maxVal loopBody = do
   entry <- block `named` "loop_entry"
   loopStart <- freshName "loop_start"
+  loopBodyAfter <- freshName "loop_body_after"
   br loopStart
 
   emitBlockStart loopStart
   nextValName <- freshName "next_val"
   i <- phi [ (int32 . fromIntegral $ minVal, entry)
-           , (AST.LocalReference i32 nextValName, loopStart) ]
+           , (AST.LocalReference i32 nextValName, loopBodyAfter) ]
   loopBody i
-  emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
+  br loopBodyAfter
 
+  emitBlockStart loopBodyAfter
+  emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
   res <- icmp SLE i (int32 . fromIntegral $ maxVal)
   loopEnd <- freshName "loop_end"
   condBr res loopStart loopEnd
