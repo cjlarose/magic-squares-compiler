@@ -168,7 +168,7 @@ defMain = AST.GlobalDefinition functionDefaults
           ( Right . AST.ConstantOperand $
               Constant.GlobalReference
                 (ptr (AST.FunctionType AST.VoidType [] False))
-                (Name "print_square") )
+                (Name "enumerate") )
           [] -- arguments
           [] -- function attributes
           [] -- instruction attributes

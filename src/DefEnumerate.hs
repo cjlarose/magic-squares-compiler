@@ -45,7 +45,7 @@ import LLVM.IRBuilder.Monad
   , IRBuilder
   , MonadIRBuilder
   )
-import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store, mul, load)
+import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store, mul, load, call)
 import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
 import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
@@ -182,6 +182,10 @@ defEnumerate n [] = mdo
 
     blockBuilder :: IRBuilder ()
     blockBuilder = do
+      let printSquare = AST.ConstantOperand $
+                          Constant.GlobalReference
+                            (ptr (AST.FunctionType AST.VoidType [] False))
+                            (Name "print_square")
       forEachAvailableValue n (int32 0) (0, 0) $ \taken1 -> do
         forEachAvailableValue n taken1 (3, 3) $ \taken2 -> do
           forEachAvailableValue n taken2 (0, 3) $ \taken3 -> do
@@ -189,4 +193,6 @@ defEnumerate n [] = mdo
                          , PositionWithCoefficientTerm (-1) (1, 1)
                          , PositionWithCoefficientTerm (-1) (1, 2)
                          , PositionWithCoefficientTerm (-1) (1, 0) ]
-            ifValidComputedPosition n taken3 (InducedPosition (0, 3) calc03) $ \taken4 -> return ()
+            ifValidComputedPosition n taken3 (InducedPosition (0, 3) calc03) $ \_ -> do
+              call printSquare []
+              return ()
