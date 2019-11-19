@@ -201,6 +201,6 @@ defEnumerate n [] = mdo
                          , PositionWithCoefficientTerm (-1) (0, 0)
                          , PositionWithCoefficientTerm (-1) (3, 3)
                          , PositionWithCoefficientTerm (-1) (0, 3) ]
-            ifValidComputedPosition n taken3 (InducedPosition (0, 3) calc03) $ \_ -> do
+            ifValidComputedPosition n taken3 (InducedPosition (3, 0) calc03) $ \_ -> do
               call printSquare []
               return ()
