@@ -7,6 +7,7 @@ import Data.Char (ord)
 import Data.List (intercalate)
 import qualified Data.ByteString.Short
 import Data.ByteString.Short (ShortByteString)
+import Control.Monad (foldM)
 
 import qualified LLVM.AST as AST
 import LLVM.AST (Name(Name), Named((:=)))
@@ -44,10 +45,10 @@ import LLVM.IRBuilder.Monad
   , IRBuilder
   , MonadIRBuilder
   )
-import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store)
+import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store, mul, load)
 import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
-import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, EQ))
+import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
 
 import InstructionUtil (matrixElementAddress, emitNamedInstruction)
 
@@ -119,7 +120,50 @@ forEachAvailableValue n taken coord ifAvailable = mdo
     return ()
   return ()
 
-data ComputedResultTerm = ConstantInteger Int | PositionWithCoefficient Int (Int, Int)
+evaluatePolynomial :: MonadIRBuilder m
+                   => [(AST.Operand, AST.Operand)]
+                   -> m AST.Operand
+evaluatePolynomial xs = do
+  productTerms <- mapM (uncurry mul) xs
+  sum <- foldM add (int32 0) productTerms
+  return sum
+
+whenInBounds :: MonadIRBuilder m
+             => Int
+             -> AST.Operand
+             -> m a
+             -> m ()
+whenInBounds n val ifSuccess = do
+  gteLowerBound <- icmp SGE val (int32 1)
+  genWhen gteLowerBound $ do
+    lteUpperBound <- icmp SLE val (int32 . fromIntegral $ n * n)
+    genWhen lteUpperBound ifSuccess
+    return ()
+
+matrixFormulaTermToOperandTerm :: MonadIRBuilder m
+                               => Int
+                               -> ComputedResultTerm
+                               -> m (AST.Operand, AST.Operand)
+matrixFormulaTermToOperandTerm _ (ConstantIntegerTerm k) = return (int32 1, int32 . fromIntegral $ k)
+matrixFormulaTermToOperandTerm n (PositionWithCoefficientTerm k (i,j)) = do
+  let addr = AST.ConstantOperand $ matrixElementAddress n i j
+  squarePosVal <- load addr 4
+  return (int32 . fromIntegral $ k, squarePosVal)
+
+ifValidComputedPosition :: MonadIRBuilder m
+                        => Int
+                        -> AST.Operand
+                        -> MatrixPosition
+                        -> (AST.Operand -> m a) -> m()
+ifValidComputedPosition n taken (InducedPosition coord formula) ifSuccess = do
+  terms <- mapM (matrixFormulaTermToOperandTerm n) formula
+  val <- evaluatePolynomial terms
+  whenInBounds n val $ do
+    ifNotYetTaken n taken val coord $ \newTaken -> do
+      ifSuccess newTaken
+      return ()
+
+data ComputedResultTerm = ConstantIntegerTerm Int | PositionWithCoefficientTerm Int (Int, Int)
 data MatrixPosition = FreePosition (Int, Int)
                     | InducedPosition (Int, Int) [ComputedResultTerm]
 
@@ -137,4 +181,12 @@ defEnumerate n [] = mdo
     blocks = execIRBuilder emptyIRBuilder blockBuilder
 
     blockBuilder :: IRBuilder ()
-    blockBuilder = forEachAvailableValue n (int32 0) (0, 0) $ \g -> return ()
+    blockBuilder = do
+      forEachAvailableValue n (int32 0) (0, 0) $ \taken1 -> do
+        forEachAvailableValue n taken1 (3, 3) $ \taken2 -> do
+          forEachAvailableValue n taken2 (0, 3) $ \taken3 -> do
+            let calc03 = [ ConstantIntegerTerm 34
+                         , PositionWithCoefficientTerm (-1) (1, 1)
+                         , PositionWithCoefficientTerm (-1) (1, 2)
+                         , PositionWithCoefficientTerm (-1) (1, 0) ]
+            ifValidComputedPosition n taken3 (InducedPosition (0, 3) calc03) $ \taken4 -> return ()
