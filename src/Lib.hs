@@ -188,6 +188,35 @@ genIterateOverStaticRange minVal maxVal loopBody = do
   emitBlockStart loopEnd
   return entry
 
+isFree :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
+isFree = undefined
+
+genWhen :: MonadIRBuilder m => AST.Operand -> m a -> m ()
+genWhen = undefined
+
+setTaken :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
+setTaken = undefined
+
+setMatrixValue :: MonadIRBuilder m => (Int, Int) -> AST.Operand -> m ()
+setMatrixValue = undefined
+
+ifNotYetTaken :: MonadIRBuilder m => AST.Operand -> AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m ()
+ifNotYetTaken taken val coord ifSuccess = mdo
+  free <- isFree taken val
+  genWhen taken $ mdo
+    newTaken <- setTaken taken val
+    setMatrixValue coord val
+    ifSuccess newTaken
+
+forEachAvailableValue :: MonadIRBuilder m => AST.Operand -> (Int, Int) -> (AST.Operand -> m a) -> m()
+forEachAvailableValue taken coord ifAvailable = mdo
+  genIterateOverStaticRange 1 16 $ \param -> mdo
+    ifNotYetTaken taken param coord $ \newTaken -> mdo
+      ifAvailable newTaken
+      return ()
+    return ()
+  return ()
+
 defTestParameter ::
   ParameterName
   -> (Int, Int)
