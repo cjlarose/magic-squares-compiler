@@ -4,7 +4,7 @@
 module MagicSquare.CodeGen.DefEnumerate (defEnumerate) where
 
 import Data.Char (ord)
-import Data.List (intercalate)
+import Data.List (intercalate, foldl')
 import qualified Data.ByteString.Short
 import Data.ByteString.Short (ShortByteString)
 import Control.Monad (foldM)
@@ -208,11 +208,11 @@ defEnumerate n positions = mdo
     continueSearch :: MonadIRBuilder m
                    => ((AST.Operand -> m ()) -> m ())
                    -> MatrixPosition
-                   -> m ((AST.Operand -> m ()) -> m ())
-    continueSearch acc position = pure $ \next -> acc (\taken -> forEachPossibleValue n taken position next)
+                   -> ((AST.Operand -> m ()) -> m ())
+    continueSearch acc position = \next -> acc (\taken -> forEachPossibleValue n taken position next)
 
     blockBuilder :: IRBuilder ()
     blockBuilder = do
       let callPrintSquare = call printSquare [] >> return ()
-      search <- foldM continueSearch searchRoot positions
+      let search = foldl' continueSearch searchRoot positions
       search $ const callPrintSquare
