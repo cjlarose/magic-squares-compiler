@@ -6,6 +6,7 @@ import LLVM.Context (withContext)
 import LLVM.Module (moduleLLVMAssembly, withModuleFromAST)
 
 import MagicSquare.CodeGen.ModuleGen (enumerationModule)
+import MagicSquare.SearchPlan (searchPlan)
 
 toLLVM :: AST.Module -> IO ()
 toLLVM mod = withContext $ \ctx -> do
@@ -13,7 +14,7 @@ toLLVM mod = withContext $ \ctx -> do
   BS.putStrLn llvm
 
 printModule :: Int -> IO ()
-printModule n = toLLVM $ enumerationModule n
+printModule n = toLLVM $ enumerationModule n (searchPlan n)
 
 main :: IO ()
 main = printModule 4

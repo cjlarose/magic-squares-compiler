@@ -53,6 +53,7 @@ import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, EQ))
 
 import MagicSquare.CodeGen.DefEnumerate (defEnumerate)
 import MagicSquare.CodeGen.InstructionUtil (matrixType, matrixElementAddress)
+import MagicSquare.AST (MatrixPosition)
 
 defExternalPrintf :: AST.Definition
 defExternalPrintf = AST.GlobalDefinition functionDefaults
@@ -175,15 +176,15 @@ defMain = AST.GlobalDefinition functionDefaults
       ]
       (Instruction.Do $ Instruction.Ret (Just (AST.ConstantOperand $ Constant.Int 32 0)) [])
 
-enumerationModule :: Int -> AST.Module
-enumerationModule n = AST.defaultModule
+enumerationModule :: Int -> [MatrixPosition] -> AST.Module
+enumerationModule n plan = AST.defaultModule
   { AST.moduleName = "enumerate"
   , AST.moduleDefinitions =
     [ defGlobalSquare n
     , defGlobalFormatStr n
     , defExternalPrintf
     , defPrintSquare n
-    , defEnumerate n []
+    , defEnumerate n plan
     , defMain
     ]
   }

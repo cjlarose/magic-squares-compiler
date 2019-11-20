@@ -172,10 +172,21 @@ ifValidComputedPosition n taken (InducedPosition coord formula) ifSuccess = do
       ifSuccess newTaken
       return ()
 
+forEachPossibleValue :: MonadIRBuilder m
+                     => Int
+                     -> AST.Operand
+                     -> MatrixPosition
+                     -> (AST.Operand -> m a)
+                     -> m ()
+forEachPossibleValue n taken (InducedPosition coord formula) ifSuccess =
+  ifValidComputedPosition n taken (InducedPosition coord formula) ifSuccess
+forEachPossibleValue n taken (FreePosition coord) ifSuccess =
+  forEachAvailableValue n taken coord ifSuccess
+
 defEnumerate :: Int
              -> [MatrixPosition]
              -> AST.Definition
-defEnumerate n [] = mdo
+defEnumerate n positions = mdo
   AST.GlobalDefinition functionDefaults
     { name = Name "enumerate"
     , returnType = AST.VoidType
@@ -185,19 +196,23 @@ defEnumerate n [] = mdo
     blocks :: [BasicBlock]
     blocks = execIRBuilder emptyIRBuilder blockBuilder
 
+    printSquare :: AST.Operand
+    printSquare = AST.ConstantOperand $
+                    Constant.GlobalReference
+                      (ptr (AST.FunctionType AST.VoidType [] False))
+                      (Name "print_square")
+
+    searchRoot :: MonadIRBuilder m => (AST.Operand -> m a) -> m ()
+    searchRoot ifSuccess = ifSuccess (int32 0) >> return ()
+
+    continueSearch :: MonadIRBuilder m
+                   => ((AST.Operand -> m ()) -> m ())
+                   -> MatrixPosition
+                   -> m ((AST.Operand -> m ()) -> m ())
+    continueSearch acc position = pure $ \next -> acc (\taken -> forEachPossibleValue n taken position next)
+
     blockBuilder :: IRBuilder ()
     blockBuilder = do
-      let printSquare = AST.ConstantOperand $
-                          Constant.GlobalReference
-                            (ptr (AST.FunctionType AST.VoidType [] False))
-                            (Name "print_square")
-      forEachAvailableValue n (int32 0) (0, 0) $ \taken1 -> do
-        forEachAvailableValue n taken1 (3, 3) $ \taken2 -> do
-          forEachAvailableValue n taken2 (0, 3) $ \taken3 -> do
-            let calc03 = [ ConstantIntegerTerm 34
-                         , PositionWithCoefficientTerm (-1) (0, 0)
-                         , PositionWithCoefficientTerm (-1) (3, 3)
-                         , PositionWithCoefficientTerm (-1) (0, 3) ]
-            ifValidComputedPosition n taken3 (InducedPosition (3, 0) calc03) $ \_ -> do
-              call printSquare []
-              return ()
+      let callPrintSquare = call printSquare [] >> return ()
+      search <- foldM continueSearch searchRoot positions
+      search $ const callPrintSquare
