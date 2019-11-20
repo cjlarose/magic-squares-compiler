@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
 
-module Lib
+module MagicSquare.CodeGen.ModuleGen
     ( enumerationModule
     ) where
 
@@ -51,8 +51,8 @@ import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
 import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, EQ))
 
-import DefEnumerate (defEnumerate)
-import InstructionUtil (matrixType, matrixElementAddress)
+import MagicSquare.CodeGen.DefEnumerate (defEnumerate)
+import MagicSquare.CodeGen.InstructionUtil (matrixType, matrixElementAddress)
 
 defExternalPrintf :: AST.Definition
 defExternalPrintf = AST.GlobalDefinition functionDefaults

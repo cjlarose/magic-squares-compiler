@@ -5,7 +5,7 @@ import qualified LLVM.AST as AST
 import LLVM.Context (withContext)
 import LLVM.Module (moduleLLVMAssembly, withModuleFromAST)
 
-import qualified Lib
+import MagicSquare.CodeGen.ModuleGen (enumerationModule)
 
 toLLVM :: AST.Module -> IO ()
 toLLVM mod = withContext $ \ctx -> do
@@ -13,7 +13,7 @@ toLLVM mod = withContext $ \ctx -> do
   BS.putStrLn llvm
 
 printModule :: Int -> IO ()
-printModule n = toLLVM $ Lib.enumerationModule n
+printModule n = toLLVM $ enumerationModule n
 
 main :: IO ()
 main = printModule 4

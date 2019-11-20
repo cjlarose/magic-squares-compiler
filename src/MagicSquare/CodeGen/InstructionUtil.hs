@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module InstructionUtil
+module MagicSquare.CodeGen.InstructionUtil
   ( matrixType
   , matrixElementAddress
   , emitNamedInstruction

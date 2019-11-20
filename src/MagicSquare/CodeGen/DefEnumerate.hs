@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
 
-module DefEnumerate (defEnumerate) where
+module MagicSquare.CodeGen.DefEnumerate (defEnumerate) where
 
 import Data.Char (ord)
 import Data.List (intercalate)
@@ -50,7 +50,7 @@ import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
 import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
 
-import InstructionUtil (matrixElementAddress, emitNamedInstruction)
+import MagicSquare.CodeGen.InstructionUtil (matrixElementAddress, emitNamedInstruction)
 
 genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m ()
 genIterateOverStaticRange minVal maxVal loopBody = do
