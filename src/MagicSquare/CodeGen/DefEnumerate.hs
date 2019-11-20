@@ -50,6 +50,7 @@ import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
 import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
 
+import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
 import MagicSquare.CodeGen.InstructionUtil (matrixElementAddress, emitNamedInstruction)
 
 genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m ()
@@ -170,10 +171,6 @@ ifValidComputedPosition n taken (InducedPosition coord formula) ifSuccess = do
     ifNotYetTaken n taken val coord $ \newTaken -> do
       ifSuccess newTaken
       return ()
-
-data ComputedResultTerm = ConstantIntegerTerm Int | PositionWithCoefficientTerm Int (Int, Int)
-data MatrixPosition = FreePosition (Int, Int)
-                    | InducedPosition (Int, Int) [ComputedResultTerm]
 
 defEnumerate :: Int
              -> [MatrixPosition]
