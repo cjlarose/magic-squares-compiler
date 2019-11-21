@@ -31,16 +31,11 @@ augmentedMatrix n = fromLists rows
     rows :: [[Int]]
     rows = rowConstraints ++ columnConstraints ++ [mainDiagonalConstraint] ++ [skewDiagonalConstraint]
 
-rrefConstraintMatrix :: Int -> Either String (Matrix Int)
-rrefConstraintMatrix n = fmap (fmap toInt) $ rref rationalMatrix
+rrefConstraintMatrix :: Int -> Either String (Matrix Rational)
+rrefConstraintMatrix n = rref rationalMatrix
   where
     rationalMatrix :: Matrix Rational
-    rationalMatrix = fmap (\x -> fromRational $ (fromIntegral x) % 1) (augmentedMatrix n)
-
-    toInt :: Rational -> Int
-    toInt x = if denominator x == 1
-              then fromIntegral . numerator $ x
-              else error "Expected integer coefficient in row reduced echelon form"
+    rationalMatrix = (\x -> fromRational $ (fromIntegral x) % 1) <$> (augmentedMatrix n)
 
 searchPlan :: Int -> [MatrixPosition]
 searchPlan 4 = [ FreePosition (0, 0) -- a
