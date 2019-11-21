@@ -5,6 +5,7 @@ module MagicSquare.SearchPlan
 
 import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
 import Data.Matrix (Matrix, fromLists, rref)
+import Data.Ratio ((%), numerator, denominator)
 
 magicConstant :: Int -> Int
 magicConstant n = n * (n ^ 2 + 1) `div` 2
@@ -29,6 +30,17 @@ augmentedMatrix n = fromLists rows
 
     rows :: [[Int]]
     rows = rowConstraints ++ columnConstraints ++ [mainDiagonalConstraint] ++ [skewDiagonalConstraint]
+
+rrefConstraintMatrix :: Int -> Either String (Matrix Int)
+rrefConstraintMatrix n = fmap (fmap toInt) $ rref rationalMatrix
+  where
+    rationalMatrix :: Matrix Rational
+    rationalMatrix = fmap (\x -> fromRational $ (fromIntegral x) % 1) (augmentedMatrix n)
+
+    toInt :: Rational -> Int
+    toInt x = if denominator x == 1
+              then fromIntegral . numerator $ x
+              else error "Expected integer coefficient in row reduced echelon form"
 
 searchPlan :: Int -> [MatrixPosition]
 searchPlan 4 = [ FreePosition (0, 0) -- a
