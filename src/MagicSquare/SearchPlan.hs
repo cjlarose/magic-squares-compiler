@@ -4,6 +4,31 @@ module MagicSquare.SearchPlan
   where
 
 import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
+import Data.Matrix (Matrix, fromLists, rref)
+
+magicConstant :: Int -> Int
+magicConstant n = n * (n ^ 2 + 1) `div` 2
+
+augmentedMatrix :: Int -> Matrix Int
+augmentedMatrix n = fromLists rows
+  where
+    sumsToMagicConstant :: [Int] -> [Int]
+    sumsToMagicConstant xs = xs ++ [magicConstant n]
+
+    rowConstraints :: [[Int]]
+    rowConstraints = [ sumsToMagicConstant [ if i == row then 1 else 0 | i <- [0..n-1], j <- [0..n-1] ] | row <- [0..n-1] ]
+
+    columnConstraints :: [[Int]]
+    columnConstraints = [ sumsToMagicConstant [ if j == column then 1 else 0 | i <- [0..n-1], j <- [0..n-1] ] | column <- [0..n-1] ]
+
+    mainDiagonalConstraint :: [Int]
+    mainDiagonalConstraint = sumsToMagicConstant [ if i == j then 1 else 0 | i <- [0..n-1], j <- [0..n-1] ]
+
+    skewDiagonalConstraint :: [Int]
+    skewDiagonalConstraint = sumsToMagicConstant [ if i + j == n - 1 then 1 else 0 | i <- [0..n-1], j <- [0..n-1] ]
+
+    rows :: [[Int]]
+    rows = rowConstraints ++ columnConstraints ++ [mainDiagonalConstraint] ++ [skewDiagonalConstraint]
 
 searchPlan :: Int -> [MatrixPosition]
 searchPlan 4 = [ FreePosition (0, 0) -- a
