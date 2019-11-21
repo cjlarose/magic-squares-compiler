@@ -18,6 +18,20 @@ packages:
       sha256: f1a83aa959b69b72342997fc4fdc352086bc3b9f306cfb6a4c8bbc850d36b4fb
   original:
     hackage: llvm-hs-pure-9.0.0
+- completed:
+    cabal-file:
+      size: 2053
+      sha256: c9020d1108917ad07e36bdf8652402010ba640950c815c1c0f7c1847fda2e564
+    name: matrix
+    version: 0.3.6.2
+    git: https://github.com/Daniel-Diaz/matrix.git
+    pantry-tree:
+      size: 470
+      sha256: 66ae441d3fb94cd4425ea2caf6335549747a3cd3d719b06a9e17880e7939486e
+    commit: fcba6b88b90de8712530c0e75a872f0c53944753
+  original:
+    git: https://github.com/Daniel-Diaz/matrix.git
+    commit: fcba6b88b90de8712530c0e75a872f0c53944753
 snapshots:
 - completed:
     size: 525663
