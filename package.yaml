@@ -24,6 +24,7 @@ dependencies:
 - bytestring
 - llvm-hs
 - llvm-hs-pure
+- matrix
 - mtl
 
 library:
