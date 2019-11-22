@@ -4,6 +4,6 @@ module MagicSquare.AST
   )
   where
 
-data ComputedResultTerm = ConstantTerm Rational | PositionWithCoefficientTerm Rational (Int, Int)
+data ComputedResultTerm = ConstantTerm Rational | PositionWithCoefficientTerm Rational (Int, Int) deriving Show
 data MatrixPosition = FreePosition (Int, Int)
-                    | InducedPosition (Int, Int) [ComputedResultTerm]
+                    | InducedPosition (Int, Int) [ComputedResultTerm] deriving Show
