@@ -137,9 +137,10 @@ evaluatePolynomial n formula = do
   entryOperands <- mapM (\term -> case term of
                                     ConstantIntegerTerm k -> pure . int32 . fromIntegral $ k
                                     PositionWithCoefficientTerm _ (i, j) -> load (AST.ConstantOperand $ matrixElementAddress n i j) 4) formula
-  let coefficientOperands = map (\term -> case term of
-                                            ConstantIntegerTerm _ -> int32 1
-                                            PositionWithCoefficientTerm k _ -> int32 . fromIntegral $ k) formula
+  let coefficients = map (\term -> case term of
+                                     ConstantIntegerTerm _ -> 1
+                                     PositionWithCoefficientTerm k _ -> k) formula
+      coefficientOperands = map (int32 . fromIntegral) $ coefficients
   sumTerms <- sequence $ zipWith mul entryOperands coefficientOperands
   sum <- foldM add (int32 0) sumTerms
   return sum
