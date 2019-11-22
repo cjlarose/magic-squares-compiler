@@ -1,5 +1,7 @@
 module Main where
 
+import System.IO (hPutStrLn, stderr)
+
 import qualified Data.ByteString.Char8 as BS
 import qualified LLVM.AST as AST
 import LLVM.Context (withContext)
@@ -14,7 +16,7 @@ toLLVM mod = withContext $ \ctx -> do
   BS.putStrLn llvm
 
 printModule :: Int -> IO ()
-printModule n = toLLVM $ enumerationModule n (searchPlan n)
+printModule n = either (hPutStrLn stderr) (toLLVM . enumerationModule n) $ searchPlan n
 
 main :: IO ()
 main = printModule 4
