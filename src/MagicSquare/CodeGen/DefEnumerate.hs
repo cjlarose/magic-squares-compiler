@@ -130,10 +130,12 @@ forEachAvailableValue n taken coord ifAvailable = mdo
   return ()
 
 evaluatePolynomial :: MonadIRBuilder m
-                   => [(AST.Operand, AST.Operand)]
+                   => Int
+                   -> [ComputedResultTerm]
                    -> m AST.Operand
-evaluatePolynomial xs = do
-  productTerms <- mapM (uncurry mul) xs
+evaluatePolynomial n formula = do
+  coefficientVarPairs <- mapM (matrixFormulaTermToOperandTerm n) formula
+  productTerms <- mapM (uncurry mul) coefficientVarPairs
   sum <- foldM add (int32 0) productTerms
   return sum
 
@@ -165,8 +167,7 @@ ifValidComputedPosition :: MonadIRBuilder m
                         -> MatrixPosition
                         -> (AST.Operand -> m a) -> m()
 ifValidComputedPosition n taken (InducedPosition coord formula) ifSuccess = do
-  terms <- mapM (matrixFormulaTermToOperandTerm n) formula
-  val <- evaluatePolynomial terms
+  val <- evaluatePolynomial n formula
   whenInBounds n val $ do
     ifNotYetTaken n taken val coord $ \newTaken -> do
       ifSuccess newTaken
