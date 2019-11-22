@@ -135,10 +135,10 @@ evaluatePolynomial :: MonadIRBuilder m
                    -> m AST.Operand
 evaluatePolynomial n formula = do
   entryOperands <- mapM (\term -> case term of
-                                    ConstantTerm k -> pure . int32 . fromIntegral $ k
+                                    ConstantTerm _ -> pure . int32 $ 1
                                     PositionWithCoefficientTerm _ (i, j) -> load (AST.ConstantOperand $ matrixElementAddress n i j) 4) formula
   let coefficients = map (\term -> case term of
-                                     ConstantTerm _ -> 1
+                                     ConstantTerm k -> k
                                      PositionWithCoefficientTerm k _ -> k) formula
       coefficientOperands = map (int32 . fromIntegral) $ coefficients
   sumTerms <- sequence $ zipWith mul entryOperands coefficientOperands
