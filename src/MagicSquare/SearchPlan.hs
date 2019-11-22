@@ -57,6 +57,39 @@ pivots a = f [] [0..nrows a - 1]
         indices :: [(Int, Int)]
         indices = [ (row, j) | row <- [i..nrows a-1], j <- [0..ncols a -1] ]
 
+matrixPositions :: Int -> Either String [MatrixPosition]
+matrixPositions n = positions <$> reduced
+  where
+    reduced :: Either String (Matrix Rational)
+    reduced = rref . rationalMatrix . constraintMatrix $ n
+
+    positions :: Matrix Rational -> [MatrixPosition]
+    positions a = map positionAtCol [0..ncols a - 2]
+      where
+        ps :: [(Int, Int)]
+        ps = pivots a
+
+        findPivot :: Int -> Maybe (Int, Int)
+        findPivot j = find (\(_, jj) -> j == jj) ps
+
+        originalPosition :: Int -> (Int, Int)
+        originalPosition j = (j `div` n, j `mod` n)
+
+        entryAt :: (Int, Int) -> Rational
+        entryAt (i, j) = a ! (i + 1, j + 1)
+
+        termForPosition :: (Int, Int) -> ComputedResultTerm
+        termForPosition (i, j) | j == ncols a - 1 = ConstantTerm . entryAt $ (i, j)
+                               | otherwise        = PositionWithCoefficientTerm (- entryAt (i, j)) $ originalPosition j
+
+        equationForPivot :: (Int, Int) -> [ComputedResultTerm]
+        equationForPivot (i, j) = map termForPosition . filter (\p -> entryAt p /= 0) $ [ (i, jj) | jj <- [j + 1..ncols a - 1] ]
+
+        positionAtCol :: Int -> MatrixPosition
+        positionAtCol j = case findPivot j of
+                            Just p  -> InducedPosition (originalPosition j) $ equationForPivot p
+                            Nothing -> FreePosition . originalPosition $ j
+
 searchPlan :: Int -> [MatrixPosition]
 searchPlan 4 = [ FreePosition (0, 0) -- a
                , FreePosition (3, 3) -- b
