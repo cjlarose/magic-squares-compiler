@@ -1,5 +1,7 @@
 module MagicSquare.SearchPlan
   ( searchPlan
+  , rrefConstraintMatrix
+  , pivots
   )
   where
 
@@ -13,8 +15,8 @@ import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
 magicConstant :: Int -> Int
 magicConstant n = n * (n ^ 2 + 1) `div` 2
 
-augmentedMatrix :: Int -> Matrix Int
-augmentedMatrix n = fromLists rows
+constraintMatrix :: Int -> Matrix Int
+constraintMatrix n = fromLists rows
   where
     sumsToMagicConstant :: [Int] -> [Int]
     sumsToMagicConstant xs = xs ++ [magicConstant n]
@@ -38,7 +40,7 @@ rrefConstraintMatrix :: Int -> Either String (Matrix Rational)
 rrefConstraintMatrix n = rref rationalMatrix
   where
     rationalMatrix :: Matrix Rational
-    rationalMatrix = (\x -> fromRational $ (fromIntegral x) % 1) <$> (augmentedMatrix n)
+    rationalMatrix = (\x -> fromRational $ (fromIntegral x) % 1) <$> (constraintMatrix n)
 
 pivots :: (Eq a, Num a) => Matrix a -> [(Int, Int)]
 pivots a = f [] [0..nrows a - 1]
