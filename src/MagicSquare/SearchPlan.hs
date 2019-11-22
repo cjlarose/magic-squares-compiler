@@ -45,7 +45,7 @@ pivots a = f [] [0..nrows a - 1]
     f :: [(Int, Int)] -> [Int] -> [(Int, Int)]
     f acc [] = acc
     f acc (i : is)
-      | isNothing pivot = acc
+      | isNothing pivot = reverse acc
       | otherwise       = f (fromJust pivot : acc) is
       where
         pivot :: Maybe (Int, Int)
