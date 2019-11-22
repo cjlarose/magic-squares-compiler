@@ -95,9 +95,9 @@ matrixPositions n = positions <$> reduced
 topoSort :: [MatrixPosition] -> [MatrixPosition]
 topoSort xs = f [] xs
   where
-    f :: [[MatrixPosition]] -> [MatrixPosition] -> [MatrixPosition]
+    f :: [MatrixPosition] -> [MatrixPosition] -> [MatrixPosition]
     f acc remaining
-      | null remaining = concat . reverse $ acc
+      | null remaining = reverse acc
       | otherwise      = f (bestChoice : acc) leftover
       where
         isFree :: MatrixPosition -> Bool
@@ -109,7 +109,7 @@ topoSort xs = f [] xs
         (remainingFreePositions, remainingInducedPositions) = partition isFree remaining
 
         computedFreePositions :: Set.Set (Int, Int)
-        computedFreePositions = Set.fromList . map coord . filter isFree . concat $ acc
+        computedFreePositions = Set.fromList . map coord . filter isFree $ acc
 
         dependencies :: MatrixPosition -> Set.Set (Int, Int)
         dependencies (InducedPosition _ terms) =
@@ -123,18 +123,20 @@ topoSort xs = f [] xs
         satisfiableDependents :: MatrixPosition -> [MatrixPosition]
         satisfiableDependents (FreePosition p) = filter (satisfiedBy (Set.insert p computedFreePositions)) remainingInducedPositions
 
-        choices :: [[MatrixPosition]]
-        choices = map (\p -> p : satisfiableDependents p) remainingFreePositions
+        choices :: [(MatrixPosition, [MatrixPosition])]
+        choices = map (\p -> (p, satisfiableDependents p)) remainingFreePositions
 
-        bestChoice :: [MatrixPosition]
-        bestChoice = maximumBy (comparing length) choices
+        bestChoice :: MatrixPosition
+        bestChoice = case find (satisfiedBy computedFreePositions) remainingInducedPositions of
+                       Just p  -> p
+                       Nothing -> fst $ maximumBy (comparing $ length . snd) choices
 
         coord :: MatrixPosition -> (Int, Int)
         coord (FreePosition c) = c
         coord (InducedPosition c _) = c
 
         leftover :: [MatrixPosition]
-        leftover = filter (\mp -> not $ (coord mp) `elem` (map coord bestChoice)) remaining
+        leftover = filter (\mp -> coord mp /= coord bestChoice) remaining
 
 searchPlan :: Int -> [MatrixPosition]
 searchPlan 4 = [ FreePosition (0, 0) -- a
