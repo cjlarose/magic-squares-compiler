@@ -134,9 +134,14 @@ evaluatePolynomial :: MonadIRBuilder m
                    -> [ComputedResultTerm]
                    -> m AST.Operand
 evaluatePolynomial n formula = do
-  coefficientVarPairs <- mapM (matrixFormulaTermToOperandTerm n) formula
-  productTerms <- mapM (uncurry mul) coefficientVarPairs
-  sum <- foldM add (int32 0) productTerms
+  entryOperands <- mapM (\term -> case term of
+                                    ConstantIntegerTerm k -> pure . int32 . fromIntegral $ k
+                                    PositionWithCoefficientTerm _ (i, j) -> load (AST.ConstantOperand $ matrixElementAddress n i j) 4) formula
+  let coefficientOperands = map (\term -> case term of
+                                            ConstantIntegerTerm _ -> int32 1
+                                            PositionWithCoefficientTerm k _ -> int32 . fromIntegral $ k) formula
+  sumTerms <- sequence $ zipWith mul entryOperands coefficientOperands
+  sum <- foldM add (int32 0) sumTerms
   return sum
 
 whenInBounds :: MonadIRBuilder m
@@ -150,16 +155,6 @@ whenInBounds n val ifSuccess = do
     lteUpperBound <- icmp SLE val (int32 . fromIntegral $ n * n)
     genWhen lteUpperBound ifSuccess
     return ()
-
-matrixFormulaTermToOperandTerm :: MonadIRBuilder m
-                               => Int
-                               -> ComputedResultTerm
-                               -> m (AST.Operand, AST.Operand)
-matrixFormulaTermToOperandTerm _ (ConstantIntegerTerm k) = return (int32 1, int32 . fromIntegral $ k)
-matrixFormulaTermToOperandTerm n (PositionWithCoefficientTerm k (i,j)) = do
-  let addr = AST.ConstantOperand $ matrixElementAddress n i j
-  squarePosVal <- load addr 4
-  return (int32 . fromIntegral $ k, squarePosVal)
 
 ifValidComputedPosition :: MonadIRBuilder m
                         => Int
