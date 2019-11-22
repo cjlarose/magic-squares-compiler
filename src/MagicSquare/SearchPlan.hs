@@ -36,11 +36,8 @@ constraintMatrix n = fromLists rows
     rows :: [[Int]]
     rows = rowConstraints ++ columnConstraints ++ [mainDiagonalConstraint] ++ [skewDiagonalConstraint]
 
-rrefConstraintMatrix :: Int -> Either String (Matrix Rational)
-rrefConstraintMatrix n = rref rationalMatrix
-  where
-    rationalMatrix :: Matrix Rational
-    rationalMatrix = (\x -> fromRational $ (fromIntegral x) % 1) <$> (constraintMatrix n)
+rationalMatrix :: Matrix Int -> Matrix Rational
+rationalMatrix = fmap (\x -> fromRational $ (fromIntegral x) % 1)
 
 pivots :: (Eq a, Num a) => Matrix a -> [(Int, Int)]
 pivots a = f [] [0..nrows a - 1]
