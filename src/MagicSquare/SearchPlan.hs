@@ -3,9 +3,12 @@ module MagicSquare.SearchPlan
   )
   where
 
-import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
-import Data.Matrix (Matrix, fromLists, rref)
+import Data.Matrix (Matrix, fromLists, rref, nrows, ncols, (!))
 import Data.Ratio ((%), numerator, denominator)
+import Data.Maybe (isNothing, fromJust)
+import Data.List (find)
+
+import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
 
 magicConstant :: Int -> Int
 magicConstant n = n * (n ^ 2 + 1) `div` 2
@@ -36,6 +39,24 @@ rrefConstraintMatrix n = rref rationalMatrix
   where
     rationalMatrix :: Matrix Rational
     rationalMatrix = (\x -> fromRational $ (fromIntegral x) % 1) <$> (augmentedMatrix n)
+
+pivots :: (Eq a, Num a) => Matrix a -> [(Int, Int)]
+pivots a = f [] [0..nrows a - 1]
+  where
+    f :: [(Int, Int)] -> [Int] -> [(Int, Int)]
+    f acc [] = acc
+    f acc (i : is)
+      | isNothing pivot = acc
+      | otherwise       = f (fromJust pivot : acc) is
+      where
+        pivot :: Maybe (Int, Int)
+        pivot = find isNonZero indices
+
+        isNonZero :: (Int, Int) -> Bool
+        isNonZero (r, c) = a ! (r + 1, c + 1) /= 0
+
+        indices :: [(Int, Int)]
+        indices = [ (row, j) | row <- [i..nrows a-1], j <- [0..ncols a -1] ]
 
 searchPlan :: Int -> [MatrixPosition]
 searchPlan 4 = [ FreePosition (0, 0) -- a
