@@ -8,6 +8,7 @@ import Data.List (intercalate, foldl')
 import qualified Data.ByteString.Short
 import Data.ByteString.Short (ShortByteString)
 import Control.Monad (foldM)
+import Data.Ratio (numerator, denominator)
 
 import qualified LLVM.AST as AST
 import LLVM.AST (Name(Name), Named((:=)))
@@ -45,7 +46,7 @@ import LLVM.IRBuilder.Monad
   , IRBuilder
   , MonadIRBuilder
   )
-import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store, mul, load, call)
+import LLVM.IRBuilder.Instruction (retVoid, add, phi, icmp, condBr, br, sub, shl, and, or, store, mul, load, call, sdiv)
 import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Internal.SnocList (snoc)
 import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
@@ -140,9 +141,11 @@ evaluatePolynomial n formula = do
   let coefficients = map (\term -> case term of
                                      ConstantTerm k -> k
                                      PositionWithCoefficientTerm k _ -> k) formula
-      coefficientOperands = map (int32 . fromIntegral) $ coefficients
+      divisor = foldl' lcm 1 . map denominator $ coefficients
+      coefficientOperands = map (\q -> int32 $ (numerator q * divisor) `div` divisor) $ coefficients
   sumTerms <- sequence $ zipWith mul entryOperands coefficientOperands
   sum <- foldM add (int32 0) sumTerms
+  quotient <- sdiv sum (int32 divisor)
   return sum
 
 whenInBounds :: MonadIRBuilder m
