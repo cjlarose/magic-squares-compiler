@@ -1,7 +1,5 @@
 module MagicSquare.SearchPlan
   ( searchPlan
-  , rrefConstraintMatrix
-  , pivots
   )
   where
 
