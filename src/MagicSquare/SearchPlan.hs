@@ -6,8 +6,7 @@ module MagicSquare.SearchPlan
 import Data.Matrix (Matrix, fromLists, rref, nrows, ncols, (!))
 import Data.Ratio ((%), numerator, denominator)
 import Data.Maybe (isNothing, fromJust, listToMaybe)
-import Data.List (find, maximumBy, partition, foldl')
-import Data.Ord (comparing)
+import Data.List (find, foldl')
 import qualified Data.Set as Set
 
 import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
@@ -90,56 +89,10 @@ matrixPositions n = positions <$> reduced
                             Just p  -> InducedPosition (originalPosition j) $ equationForPivot p
                             Nothing -> FreePosition . originalPosition $ j
 
-topoSort :: [MatrixPosition] -> [MatrixPosition]
-topoSort xs = f [] xs
-  where
-    f :: [MatrixPosition] -> [MatrixPosition] -> [MatrixPosition]
-    f acc remaining
-      | null remaining = reverse acc
-      | otherwise      = f (bestChoice : acc) leftover
-      where
-        isFree :: MatrixPosition -> Bool
-        isFree (FreePosition _) = True
-        isFree _ = False
-
-        remainingFreePositions :: [MatrixPosition]
-        remainingInducedPositions :: [MatrixPosition]
-        (remainingFreePositions, remainingInducedPositions) = partition isFree remaining
-
-        computedFreePositions :: Set.Set (Int, Int)
-        computedFreePositions = Set.fromList . map coord . filter isFree $ acc
-
-        dependencies :: MatrixPosition -> Set.Set (Int, Int)
-        dependencies (InducedPosition _ terms) =
-          foldl' (\acc term -> case term of
-                                 PositionWithCoefficientTerm _ p -> Set.insert p acc
-                                 _ -> acc) Set.empty terms
-
-        satisfiedBy :: Set.Set (Int, Int) -> MatrixPosition -> Bool
-        satisfiedBy computed inducedPosition = Set.isSubsetOf (dependencies inducedPosition) computed
-
-        satisfiableDependents :: MatrixPosition -> [MatrixPosition]
-        satisfiableDependents (FreePosition p) = filter (satisfiedBy (Set.insert p computedFreePositions)) remainingInducedPositions
-
-        choices :: [(MatrixPosition, [MatrixPosition])]
-        choices = map (\p -> (p, satisfiableDependents p)) remainingFreePositions
-
-        bestChoice :: MatrixPosition
-        bestChoice = case find (satisfiedBy computedFreePositions) remainingInducedPositions of
-                       Just p  -> p
-                       Nothing -> fst $ maximumBy (comparing $ length . snd) choices
-
-        coord :: MatrixPosition -> (Int, Int)
-        coord (FreePosition c) = c
-        coord (InducedPosition c _) = c
-
-        leftover :: [MatrixPosition]
-        leftover = filter (\mp -> coord mp /= coord bestChoice) remaining
-
 data Vertex = SearchStart | Choice MatrixPosition | SearchEnd deriving (Eq, Ord, Show)
 
-topoSort' :: [MatrixPosition] -> [MatrixPosition]
-topoSort' xs = search . Set.singleton $ (0, [SearchStart])
+topoSort :: [MatrixPosition] -> [MatrixPosition]
+topoSort xs = search . Set.singleton $ (0, [SearchStart])
   where
     choices :: [Vertex] -> [MatrixPosition]
     choices = reverse . foldl' (\acc x -> case x of
