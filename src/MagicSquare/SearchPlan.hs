@@ -139,7 +139,7 @@ topoSort xs = f [] xs
 data Vertex = SearchStart | Choice MatrixPosition | SearchEnd deriving (Eq, Ord, Show)
 
 topoSort' :: [MatrixPosition] -> [MatrixPosition]
-topoSort' xs = search (Set.singleton (0, [SearchStart])) Set.empty
+topoSort' xs = search . Set.singleton $ (0, [SearchStart])
   where
     choices :: [Vertex] -> [MatrixPosition]
     choices = reverse . foldl' (\acc x -> case x of
@@ -162,10 +162,10 @@ topoSort' xs = search (Set.singleton (0, [SearchStart])) Set.empty
                              PositionWithCoefficientTerm _ p -> Set.insert (Choice (FreePosition p)) acc
                              _ -> acc) Set.empty terms
 
-    search :: Set.Set (Int, [Vertex]) -> Set.Set Vertex -> [MatrixPosition]
-    search q visited = case minV of
-                         SearchEnd -> reverse . choices $ minPath
-                         _ -> search newQueue . Set.insert minV $ visited
+    search :: Set.Set (Int, [Vertex]) -> [MatrixPosition]
+    search q = case minV of
+                 SearchEnd -> reverse . choices $ minPath
+                 _ -> search newQueue
       where
         withoutMin :: Set.Set (Int, [Vertex])
         ((minDistance, minPath), withoutMin) = Set.deleteFindMin q
