@@ -5,7 +5,7 @@ module MagicSquare.SearchPlan
 
 import Data.Matrix (Matrix, fromLists, rref, nrows, ncols, (!))
 import Data.Ratio ((%), numerator, denominator)
-import Data.Maybe (isNothing, fromJust)
+import Data.Maybe (isNothing, fromJust, listToMaybe)
 import Data.List (find, maximumBy, partition, foldl')
 import Data.Ord (comparing)
 import qualified Data.Set as Set
@@ -135,6 +135,70 @@ topoSort xs = f [] xs
 
         leftover :: [MatrixPosition]
         leftover = filter (\mp -> coord mp /= coord bestChoice) remaining
+
+data Vertex = SearchStart | Choice MatrixPosition | SearchEnd deriving (Eq, Ord, Show)
+
+topoSort' :: [MatrixPosition] -> [MatrixPosition]
+topoSort' xs = search (Set.singleton (0, [SearchStart])) Set.empty
+  where
+    choices :: [Vertex] -> [MatrixPosition]
+    choices = reverse . foldl' (\acc x -> case x of
+                                  Choice y -> y : acc
+                                  _        -> acc) []
+
+    isInduced :: Vertex -> Bool
+    isInduced (Choice (InducedPosition _ _)) = True
+    isInduced _                              = False
+
+    vertices :: Set.Set Vertex
+    vertices = Set.fromList $ SearchStart : SearchEnd : map Choice xs
+
+    dependencies :: Vertex -> Set.Set Vertex
+    dependencies SearchStart = Set.empty
+    dependencies SearchEnd = Set.fromList . map Choice $ xs
+    dependencies (Choice (FreePosition _)) = Set.singleton SearchStart
+    dependencies (Choice (InducedPosition _ terms)) =
+      foldl' (\acc term -> case term of
+                             PositionWithCoefficientTerm _ p -> Set.insert (Choice (FreePosition p)) acc
+                             _ -> acc) Set.empty terms
+
+    search :: Set.Set (Int, [Vertex]) -> Set.Set Vertex -> [MatrixPosition]
+    search q visited = case minV of
+                         SearchEnd -> reverse . choices $ minPath
+                         _ -> search newQueue . Set.insert minV $ visited
+      where
+        withoutMin :: Set.Set (Int, [Vertex])
+        ((minDistance, minPath), withoutMin) = Set.deleteFindMin q
+        (minV : _) = minPath
+
+        computedPositions :: Set.Set Vertex
+        computedPositions = Set.fromList minPath
+
+        computedInducedPositions :: Set.Set Vertex
+        computedInducedPositions = Set.filter isInduced computedPositions
+
+        remainingPositions :: Set.Set Vertex
+        remainingPositions = Set.difference vertices computedPositions
+
+        satisfiable :: Vertex -> Bool
+        satisfiable x = Set.isSubsetOf (dependencies x) computedPositions
+
+        satisfiableDependents :: Set.Set Vertex
+        satisfiableDependents = Set.filter satisfiable remainingPositions
+
+        updateQueue :: Set.Set (Int, [Vertex]) -> Vertex -> Set.Set (Int, [Vertex])
+        updateQueue q v =
+          let newPath = v : minPath
+              newCost = case v of
+                          SearchEnd -> minDistance
+                          Choice (FreePosition _) -> (max 1 minDistance) * (length xs - (Set.size computedInducedPositions))
+                          Choice (InducedPosition _ _) -> minDistance
+              existingEl = listToMaybe . Set.toList . Set.filter (\(_, (u : _)) -> u == v) $ q
+              newEl = (newCost, newPath)
+          in Set.insert newEl q
+
+        newQueue :: Set.Set (Int, [Vertex])
+        newQueue = foldl' updateQueue withoutMin satisfiableDependents
 
 searchPlan :: Int -> Either String [MatrixPosition]
 searchPlan n = topoSort <$> matrixPositions n
