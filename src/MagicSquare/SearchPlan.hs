@@ -128,9 +128,6 @@ topoSort xs = search . Set.singleton $ (0, [SearchStart])
         computedPositions :: Set.Set Vertex
         computedPositions = Set.fromList minPath
 
-        computedInducedPositions :: Set.Set Vertex
-        computedInducedPositions = Set.filter isInduced computedPositions
-
         remainingPositions :: Set.Set Vertex
         remainingPositions = Set.difference vertices computedPositions
 
@@ -145,7 +142,7 @@ topoSort xs = search . Set.singleton $ (0, [SearchStart])
           let newPath = v : minPath
               newCost = case v of
                           SearchEnd -> minDistance
-                          Choice (FreePosition _) -> (max 1 minDistance) * (length xs - (Set.size computedInducedPositions))
+                          Choice (FreePosition _) -> (max 1 minDistance) * (length xs - (Set.size computedPositions) - 1)
                           Choice (InducedPosition _ _) -> minDistance
               existingEl = listToMaybe . Set.toList . Set.filter (\(_, (u : _)) -> u == v) $ q
               newEl = (newCost, newPath)
