@@ -90,10 +90,19 @@ matrixPositions n = positions n <$> reduced
     reduced :: Either String (Matrix Rational)
     reduced = rref . rationalMatrix . constraintMatrix $ n
 
+planCost :: Int -> [MatrixPosition] -> Integer
+planCost n xs = fst $ foldl' f (0, 0) xs
+  where
+    m :: Integer
+    m = fromIntegral n
+
+    f (cost, depth) (InducedPosition _ _) = (cost, depth + 1)
+    f (cost, depth) (FreePosition _) = (max cost 1 * ((m^2) - depth), depth + 1)
+
 data Vertex = SearchStart | Choice MatrixPosition | SearchEnd deriving (Eq, Ord, Show)
 
-topoSort :: [MatrixPosition] -> [MatrixPosition]
-topoSort xs = search . Set.singleton $ (0, [SearchStart])
+topoSort :: Int -> [MatrixPosition] -> [MatrixPosition]
+topoSort n xs = search . Set.singleton $ (0, [SearchStart])
   where
     choices :: [Vertex] -> [MatrixPosition]
     choices = reverse . foldl' (\acc x -> case x of
@@ -140,10 +149,7 @@ topoSort xs = search . Set.singleton $ (0, [SearchStart])
         updateQueue :: Set.Set (Integer, [Vertex]) -> Vertex -> Set.Set (Integer, [Vertex])
         updateQueue q v =
           let newPath = v : minPath
-              newCost = case v of
-                          SearchEnd -> minDistance
-                          Choice (FreePosition _) -> (max 1 minDistance) * ((fromIntegral . length $ xs) - (fromIntegral . Set.size $ computedPositions) - 1)
-                          Choice (InducedPosition _ _) -> minDistance
+              newCost = planCost n . choices . reverse $ newPath
               existingEl = listToMaybe . Set.toList . Set.filter (\(_, (u : _)) -> u == v) $ q
               newEl = (newCost, newPath)
           in Set.insert newEl q
@@ -152,4 +158,4 @@ topoSort xs = search . Set.singleton $ (0, [SearchStart])
         newQueue = foldl' updateQueue withoutMin satisfiableDependents
 
 searchPlan :: Int -> Either String [MatrixPosition]
-searchPlan n = topoSort <$> matrixPositions n
+searchPlan n = topoSort n <$> matrixPositions n
