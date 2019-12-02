@@ -54,8 +54,8 @@ import LLVM.AST.IntegerPredicate (IntegerPredicate(SLE, SGE, EQ))
 import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
 import MagicSquare.CodeGen.InstructionUtil (matrixElementAddress, emitNamedInstruction)
 
-genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m ()
-genIterateOverStaticRange minVal maxVal loopBody = do
+genDoWhile :: MonadIRBuilder m => m AST.Operand -> (Name -> Name -> m a) -> m ()
+genDoWhile loopCondition loopBody = do
   loopEntry <- freshName "loop_entry"
   loopStart <- freshName "loop_start"
   loopBodyAfter <- freshName "loop_body_after"
@@ -66,20 +66,26 @@ genIterateOverStaticRange minVal maxVal loopBody = do
   br loopStart
 
   emitBlockStart loopStart
-  nextValName <- freshName "next_val"
-  i <- phi [ (int32 . fromIntegral $ minVal, loopEntry)
-           , (AST.LocalReference i32 nextValName, loopBodyAfter) ]
-  loopBody i
+  loopBody loopEntry loopBodyAfter
   br loopBodyAfter
 
   emitBlockStart loopBodyAfter
-  nextVal <- emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) []
-  res <- icmp SLE nextVal (int32 . fromIntegral $ maxVal)
   loopEnd <- freshName "loop_end"
+  res <- loopCondition
   condBr res loopStart loopEnd
 
   emitBlockStart loopEnd
-  return ()
+
+genIterateOverStaticRange :: MonadIRBuilder m => Int -> Int -> (AST.Operand -> m a) -> m ()
+genIterateOverStaticRange minVal maxVal loopBody = do
+  nextValName <- freshName "next_val"
+
+  let loopCondition = icmp SLE (AST.LocalReference i32 nextValName) (int32 . fromIntegral $ maxVal)
+  genDoWhile loopCondition (\loopEntry loopBodyAfter -> do
+    i <- phi [ (int32 . fromIntegral $ minVal, loopEntry)
+             , (AST.LocalReference i32 nextValName, loopBodyAfter) ]
+    loopBody i
+    emitNamedInstruction nextValName i32 $ Instruction.Add False False i (int32 1) [])
 
 isFree :: MonadIRBuilder m => AST.Operand -> AST.Operand -> m AST.Operand
 isFree taken val = do
