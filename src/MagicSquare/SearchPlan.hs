@@ -116,12 +116,12 @@ topoSort xs = search . Set.singleton $ (0, [SearchStart])
                              PositionWithCoefficientTerm _ p -> Set.insert (Choice (FreePosition p)) acc
                              _ -> acc) Set.empty terms
 
-    search :: Set.Set (Int, [Vertex]) -> [MatrixPosition]
+    search :: Set.Set (Integer, [Vertex]) -> [MatrixPosition]
     search q = case minV of
                  SearchEnd -> reverse . choices $ minPath
                  _ -> search newQueue
       where
-        withoutMin :: Set.Set (Int, [Vertex])
+        withoutMin :: Set.Set (Integer, [Vertex])
         ((minDistance, minPath), withoutMin) = Set.deleteFindMin q
         (minV : _) = minPath
 
@@ -137,18 +137,18 @@ topoSort xs = search . Set.singleton $ (0, [SearchStart])
         satisfiableDependents :: Set.Set Vertex
         satisfiableDependents = Set.filter satisfiable remainingPositions
 
-        updateQueue :: Set.Set (Int, [Vertex]) -> Vertex -> Set.Set (Int, [Vertex])
+        updateQueue :: Set.Set (Integer, [Vertex]) -> Vertex -> Set.Set (Integer, [Vertex])
         updateQueue q v =
           let newPath = v : minPath
               newCost = case v of
                           SearchEnd -> minDistance
-                          Choice (FreePosition _) -> (max 1 minDistance) * (length xs - (Set.size computedPositions) - 1)
+                          Choice (FreePosition _) -> (max 1 minDistance) * ((fromIntegral . length $ xs) - (fromIntegral . Set.size $ computedPositions) - 1)
                           Choice (InducedPosition _ _) -> minDistance
               existingEl = listToMaybe . Set.toList . Set.filter (\(_, (u : _)) -> u == v) $ q
               newEl = (newCost, newPath)
           in Set.insert newEl q
 
-        newQueue :: Set.Set (Int, [Vertex])
+        newQueue :: Set.Set (Integer, [Vertex])
         newQueue = foldl' updateQueue withoutMin satisfiableDependents
 
 searchPlan :: Int -> Either String [MatrixPosition]
