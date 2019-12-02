@@ -105,9 +105,9 @@ topoSort :: Int -> [MatrixPosition] -> [MatrixPosition]
 topoSort n xs = search . Set.singleton $ (0, [SearchStart])
   where
     choices :: [Vertex] -> [MatrixPosition]
-    choices [] = []
-    choices (Choice x:xs) = x : choices xs
-    choices (_:xs) = choices xs
+    choices = foldr (\x acc -> case x of
+                                 Choice x -> x : acc
+                                 _        -> acc) []
 
     isInduced :: Vertex -> Bool
     isInduced (Choice (InducedPosition _ _)) = True
