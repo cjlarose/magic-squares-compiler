@@ -30,5 +30,8 @@ serialize n xs = unlines output
     showCost :: String
     showCost = printf "# cost = %d" . planCost n $ xs
 
+    showOrder :: String
+    showOrder = printf "order\t%d" n
+
     output :: [String]
-    output = showCost : map serializePosition xs
+    output = showCost : showOrder : map serializePosition xs
