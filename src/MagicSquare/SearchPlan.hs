@@ -1,5 +1,6 @@
 module MagicSquare.SearchPlan
   ( searchPlan
+  , planCost
   )
   where
 
