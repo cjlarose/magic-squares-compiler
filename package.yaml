@@ -27,6 +27,7 @@ dependencies:
 - llvm-hs-pure
 - matrix
 - mtl
+- parsec
 
 library:
   source-dirs: src
