@@ -1,10 +1,11 @@
 # magic-squares-compiler
 
-```
-stack run -- plan 4 > plan4.txt
-stack run -- compile < plan4.txt > enumerate4.ll
-llc-9 -O3 < enumerate4.ll > enumerate4.s # for debugging
-llc-9 -O3 -filetype=obj < enumerate4.ll > enumerate4.o
-clang -o enumerate4 enumerate4.o
-./enumerate4
+```bash
+order=4
+stack run -- plan "$order" > plan"$order".txt
+stack run -- compile < plan"$order".txt > enumerate"$order".ll
+llc-9 -O3 < enumerate"$order".ll > enumerate"$order".s
+llc-9 -O3 -filetype=obj < enumerate"$order".ll > enumerate"$order".o
+clang -o enumerate"$order" enumerate"$order".o
+./enumerate"$order"
 ```
