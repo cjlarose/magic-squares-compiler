@@ -6,7 +6,7 @@ module MagicSquare.SearchPlan.Parse
 import Data.Maybe (catMaybes)
 import Data.Ratio ((%))
 
-import Text.Parsec (ParseError, (<|>), many, many1, manyTill, try, eof, between, sepBy1, option)
+import Text.Parsec (ParseError, (<|>), many, many1, manyTill, try, eof, between, sepBy1, option, optionMaybe)
 import qualified Text.Parsec (parse)
 import Text.Parsec.ByteString (Parser)
 import Text.Parsec.Char (endOfLine, string, space, noneOf, digit, char, anyChar)
@@ -21,7 +21,7 @@ integer :: Parser Integer
 integer = (*) <$> multiplier <*> (fromIntegral <$> nonnegativeInteger)
   where
     multiplier :: Parser Integer
-    multiplier = option 1 ((\_ -> -1) <$> char '-')
+    multiplier = option 1 ((-1) <$ char '-')
 
 coordinatePair :: Parser (Int, Int)
 coordinatePair = between (char '(') (char ')') $
@@ -30,17 +30,21 @@ coordinatePair = between (char '(') (char ')') $
 freePosition :: Parser MatrixPosition
 freePosition = FreePosition <$> coordinatePair
 
-rationalCoefficient :: Parser Rational
-rationalCoefficient = between (char '(') (char ')') $
+rational :: Parser Rational
+rational = between (char '(') (char ')') $
   (%) <$> (integer <* char '/') <*> integer
 
 term :: Parser ComputedResultTerm
-term = PositionWithCoefficientTerm <$> rationalCoefficient <*> coordinatePair
+term = f <$> rational <*> (optionMaybe coordinatePair)
+  where
+    f :: Rational -> Maybe (Int, Int) -> ComputedResultTerm
+    f q Nothing = ConstantTerm q
+    f q (Just coord) = PositionWithCoefficientTerm q coord
 
 basicPosition :: Parser MatrixPosition
-basicPosition = InducedPosition <$> coordinatePair <*> terms
+basicPosition = InducedPosition <$> (coordinatePair <* many1 space) <*> terms
   where
-    terms = sepBy1 term $ many space *> char '+' *> many space
+    terms = sepBy1 term $ many (char ' ') *> char '+' *> many (char ' ')
 
 positionDeclaration :: Parser MatrixPosition
 positionDeclaration = (position "free" freePosition <|> position "basic" basicPosition) <* endOfLine
