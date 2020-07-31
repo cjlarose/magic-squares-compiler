@@ -4,8 +4,9 @@ module MagicSquare.SearchPlan.Parse
   where
 
 import Data.Maybe (catMaybes)
+import Data.Ratio ((%))
 
-import Text.Parsec (ParseError, (<|>), many, many1, manyTill, try, eof, between, sepBy1)
+import Text.Parsec (ParseError, (<|>), many, many1, manyTill, try, eof, between, sepBy1, option)
 import qualified Text.Parsec (parse)
 import Text.Parsec.ByteString (Parser)
 import Text.Parsec.Char (endOfLine, string, space, noneOf, digit, char, anyChar)
@@ -16,6 +17,12 @@ import MagicSquare.AST (ComputedResultTerm(..), MatrixPosition(..))
 nonnegativeInteger :: Parser Int
 nonnegativeInteger = read <$> many1 digit
 
+integer :: Parser Integer
+integer = (*) <$> multiplier <*> (fromIntegral <$> nonnegativeInteger)
+  where
+    multiplier :: Parser Integer
+    multiplier = option 1 ((\_ -> -1) <$> char '-')
+
 coordinatePair :: Parser (Int, Int)
 coordinatePair = between (char '(') (char ')') $
   (\i j -> (i, j)) <$> (nonnegativeInteger <* char ',') <*> nonnegativeInteger
@@ -23,8 +30,12 @@ coordinatePair = between (char '(') (char ')') $
 freePosition :: Parser MatrixPosition
 freePosition = FreePosition <$> coordinatePair
 
+rationalCoefficient :: Parser Rational
+rationalCoefficient = between (char '(') (char ')') $
+  (%) <$> (integer <* char '/') <*> integer
+
 term :: Parser ComputedResultTerm
-term = undefined
+term = PositionWithCoefficientTerm <$> rationalCoefficient <*> coordinatePair
 
 basicPosition :: Parser MatrixPosition
 basicPosition = InducedPosition <$> coordinatePair <*> terms
