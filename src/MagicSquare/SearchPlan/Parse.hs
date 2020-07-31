@@ -35,7 +35,7 @@ rational = between (char '(') (char ')') $
   (%) <$> (integer <* char '/') <*> integer
 
 term :: Parser ComputedResultTerm
-term = f <$> rational <*> (optionMaybe coordinatePair)
+term = f <$> rational <*> optionMaybe coordinatePair
   where
     f :: Rational -> Maybe (Int, Int) -> ComputedResultTerm
     f q Nothing = ConstantTerm q
@@ -53,7 +53,7 @@ positionDeclaration = (position "free" freePosition <|> position "basic" basicPo
     position posType p = string posType *> many1 space *> p
 
 comment :: Parser String
-comment = char '#' *> (manyTill anyChar $ try endOfLine)
+comment = char '#' *> manyTill anyChar (try endOfLine)
 
 positionOrComment :: Parser (Maybe MatrixPosition)
 positionOrComment = (Nothing <$ comment) <|> (Just <$> positionDeclaration)
@@ -65,4 +65,4 @@ searchPlan :: Parser (Int, [MatrixPosition])
 searchPlan = many comment *> ((\a b -> (a, b)) <$> orderDeclaraton <*> (catMaybes <$> (many1 positionOrComment <* eof)))
 
 parse :: ByteString -> Either ParseError (Int, [MatrixPosition])
-parse input = Text.Parsec.parse searchPlan "" input
+parse = Text.Parsec.parse searchPlan ""
